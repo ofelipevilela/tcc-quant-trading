@@ -1,0 +1,67 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# pyenv
+.python-version
+
+# Environment variables
+.env
+.env.local
+
+# Data files (large files that shouldn't be in git)
+data/*.csv
+data/*.parquet
+data/*.h5
+
+# Output files (regenerable)
+outputs/*.png
+outputs/*.jpg
+outputs/*.pdf
+outputs/*.html
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db

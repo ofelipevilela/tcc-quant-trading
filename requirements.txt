@@ -1,0 +1,21 @@
+# TCC Quant Trading - Hybrid SMC + Fuzzy Logic System
+# Python 3.10+
+
+# Core Data Processing
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Fuzzy Logic
+scikit-fuzzy>=0.4.2
+scipy>=1.10.0  # Required by scikit-fuzzy
+networkx>=3.0  # Required by scikit-fuzzy control module
+
+# Smart Money Concepts
+smartmoneyconcepts>=0.0.21
+
+# Visualization
+matplotlib>=3.7.0
+
+# Optional - for future ANFIS implementation
+# anfis>=0.3.0
+# torch>=2.0.0
