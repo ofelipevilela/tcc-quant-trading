@@ -124,7 +124,7 @@ def plot_membership_functions(
     
     # Configurações dos subplots - SMC Variables
     variable_info = [
-        ('trend_strength', 'Trend Strength (Força da Tendência)', 'ADX / Slope EMA'),
+        ('trend_strength', 'Trend Strength (Direção da Tendência)', 'Slope EMA (-100=Baixa, 0=Neutra, +100=Alta)'),
         ('price_zone', 'Price Zone (Zona de Preço)', '% do Range (0=Fundo, 1=Topo)'),
         ('fvg_quality', 'FVG Quality (Qualidade do Fair Value Gap)', 'FVG Size / ATR'),
         ('sweep_quality', 'Sweep Quality (Captura de Liquidez)', 'Razão Pavio / Corpo'),
@@ -255,3 +255,211 @@ def create_detailed_report(
             save_path = os.path.join(save_dir, f"mf_{var_key}.png")
             plot_single_mf(var, title, xlabel, save_path=save_path, show=False)
             print(f"  ✓ {var_key}")
+
+
+def get_pertinence_values(
+    variable: ctrl.Antecedent | ctrl.Consequent,
+    crisp_value: float
+) -> Dict[str, float]:
+    """
+    Calcula os graus de pertinência de um valor crisp para todos os conjuntos.
+    
+    Args:
+        variable: Variável fuzzy
+        crisp_value: Valor numérico de entrada
+        
+    Returns:
+        Dicionário {nome_conjunto: grau_pertinencia}
+    
+    Example:
+        >>> from fuzzy import create_fuzzy_variables
+        >>> vars = create_fuzzy_variables()
+        >>> pertinences = get_pertinence_values(vars['trend_strength'], 35)
+        >>> print(pertinences)
+        {'Baixa': 0.32, 'Neutra': 0.68, 'Alta': 0.0}
+    """
+    import skfuzzy as fuzz
+    
+    results = {}
+    for term_name, term_mf in variable.terms.items():
+        # Interpolar para encontrar o valor de pertinência
+        membership = fuzz.interp_membership(variable.universe, term_mf.mf, crisp_value)
+        results[term_name] = round(float(membership), 3)
+    
+    return results
+
+
+def plot_with_examples(
+    variables: Dict[str, ctrl.Antecedent | ctrl.Consequent],
+    examples: Optional[Dict[str, float]] = None,
+    save_path: Optional[str] = None,
+    show: bool = True
+) -> Figure:
+    """
+    Gera visualização das MFs com exemplos anotados mostrando pertinências.
+    
+    Plota marcadores verticais nos valores de exemplo e mostra o grau
+    de pertinência para cada conjunto fuzzy.
+    
+    Args:
+        variables: Dicionário com as variáveis fuzzy
+        examples: Valores de exemplo para cada variável. Se None, usa defaults:
+                  {'trend_strength': 35, 'price_zone': 0.25, 'fvg_quality': 1.8,
+                   'sweep_quality': 1.5, 'trade_score': None}
+        save_path: Caminho para salvar o gráfico
+        show: Se True, exibe o gráfico
+        
+    Returns:
+        Figura do matplotlib
+        
+    Example:
+        >>> from fuzzy import create_fuzzy_variables
+        >>> from fuzzy.visualization import plot_with_examples
+        >>> vars = create_fuzzy_variables()
+        >>> plot_with_examples(vars, {'trend_strength': 75, 'price_zone': 0.15})
+    """
+    import skfuzzy as fuzz
+    
+    _setup_plot_style()
+    
+    # Valores de exemplo padrão (cenário de compra em desconto)
+    default_examples = {
+        'trend_strength': 75,      # Tendência alta (positivo = bullish)
+        'price_zone': 0.25,        # Zona de desconto
+        'fvg_quality': 1.8,        # FVG padrão/grande
+        'sweep_quality': 1.5,      # Sweep forte
+        'trade_score': None,       # Saída - não tem exemplo
+    }
+    
+    if examples:
+        default_examples.update(examples)
+    
+    colors = VISUALIZATION_CONFIG.colors
+    
+    variable_info = [
+        ('trend_strength', 'Trend Strength', 'Slope (-100=Baixa, +100=Alta)'),
+        ('price_zone', 'Price Zone', '% do Range'),
+        ('fvg_quality', 'FVG Quality', 'FVG Size / ATR'),
+        ('sweep_quality', 'Sweep Quality', 'Pavio / Corpo'),
+        ('trade_score', 'Trade Score (Saída)', 'Score'),
+    ]
+    
+    fig, axes = plt.subplots(
+        nrows=3, ncols=2,
+        figsize=(15, 13),
+        dpi=VISUALIZATION_CONFIG.dpi
+    )
+    axes = axes.flatten()
+    
+    for idx, (var_key, title, xlabel) in enumerate(variable_info):
+        if var_key not in variables:
+            continue
+            
+        ax = axes[idx]
+        var = variables[var_key]
+        example_value = default_examples.get(var_key)
+        
+        # Plot das MFs
+        pertinence_text = []
+        for i, (term_name, term_mf) in enumerate(var.terms.items()):
+            color = colors[i % len(colors)]
+            display_name = term_name.replace('_', ' ').title()
+            
+            ax.plot(var.universe, term_mf.mf, linewidth=2.5, 
+                   label=display_name, color=color)
+            ax.fill_between(var.universe, term_mf.mf, alpha=0.15, color=color)
+            
+            # Calcular pertinência do exemplo
+            if example_value is not None:
+                membership = fuzz.interp_membership(var.universe, term_mf.mf, example_value)
+                if membership > 0.01:  # Só mostrar se > 1%
+                    pertinence_text.append(f"μ({display_name})={membership:.2f}")
+                    # Plotar ponto na curva
+                    ax.plot(example_value, membership, 'o', color=color, 
+                           markersize=10, markeredgecolor='black', markeredgewidth=1.5)
+        
+        # Linha vertical do exemplo
+        if example_value is not None:
+            ax.axvline(x=example_value, color='#333333', linestyle='--', 
+                      linewidth=2, alpha=0.8, label=f'Exemplo: {example_value}')
+            
+            # Texto com pertinências
+            if pertinence_text:
+                text_y = 1.02
+                ax.text(example_value, text_y, '\n'.join(pertinence_text),
+                       ha='center', va='bottom', fontsize=8,
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', 
+                                alpha=0.8, edgecolor='gray'))
+        
+        ax.set_title(f"{title}", fontweight='bold', pad=10)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel('Pertinência (μ)')
+        ax.set_ylim(-0.05, 1.25)  # Mais espaço para anotações
+        ax.legend(loc='upper right', framealpha=0.9, fontsize=7)
+        ax.grid(True, alpha=0.3)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+    
+    # Esconder último subplot
+    axes[-1].set_visible(False)
+    
+    # Título principal
+    fig.suptitle(
+        'Funções de Pertinência com Exemplos Anotados\n'
+        'Sistema SMC + Fuzzy Logic (Mamdani)',
+        fontsize=14, fontweight='bold', y=0.99
+    )
+    
+    plt.tight_layout(rect=[0, 0.02, 1, 0.95])
+    
+    # Legenda do cenário
+    scenario_text = "Cenário de exemplo: " + ", ".join([
+        f"{k}={v}" for k, v in default_examples.items() if v is not None
+    ])
+    fig.text(0.5, 0.01, scenario_text, ha='center', fontsize=9, 
+             style='italic', alpha=0.8)
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        fig.savefig(save_path, dpi=VISUALIZATION_CONFIG.dpi, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        print(f"✓ Gráfico anotado salvo em: {save_path}")
+    
+    if show:
+        plt.show()
+    
+    return fig
+
+
+def print_pertinence_table(
+    variables: Dict[str, ctrl.Antecedent | ctrl.Consequent],
+    scenario: Dict[str, float]
+) -> None:
+    """
+    Imprime uma tabela formatada com os graus de pertinência de um cenário.
+    
+    Args:
+        variables: Dicionário com as variáveis fuzzy
+        scenario: Valores crisp para cada variável de entrada
+        
+    Example:
+        >>> vars = create_fuzzy_variables()
+        >>> print_pertinence_table(vars, {'trend_strength': 35, 'price_zone': 0.2})
+    """
+    print("\n" + "="*60)
+    print("TABELA DE PERTINÊNCIAS - Cenário de Análise")
+    print("="*60)
+    
+    for var_key, crisp_value in scenario.items():
+        if var_key in variables:
+            var = variables[var_key]
+            pertinences = get_pertinence_values(var, crisp_value)
+            
+            print(f"\n📊 {var_key.upper()} = {crisp_value}")
+            print("-" * 40)
+            for term, value in pertinences.items():
+                bar = "█" * int(value * 20) + "░" * (20 - int(value * 20))
+                print(f"   {term:20} │ {bar} │ {value:.3f}")
+    
+    print("\n" + "="*60)
+

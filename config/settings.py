@@ -46,24 +46,27 @@ class FuzzyVariableConfig:
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# 1. TREND_STRENGTH - Força da Tendência
-# Input Crisp: ADX ou Slope da EMA
-# Universo: 0 a 100
+# 1. TREND_STRENGTH - Força e Direção da Tendência (BIPOLAR)
+# Input Crisp: Slope da EMA ou indicador direcional
+#   - Valores negativos = Tendência de BAIXA (favorece vendas)
+#   - Zero = Sem tendência (neutro)
+#   - Valores positivos = Tendência de ALTA (favorece compras)
+# Universo: -100 a +100
 # Conjuntos: {Baixa, Neutra, Alta}
 # Tipo de Curva: Gaussiana (gaussmf) para suavidade
 # -----------------------------------------------------------------------------
 TREND_STRENGTH_CONFIG = FuzzyVariableConfig(
     universe=FuzzyUniverseConfig(
         name="Trend_Strength",
-        min_val=0,
-        max_val=100,
-        resolution=101
+        min_val=-100,   # Tendência de baixa forte
+        max_val=100,    # Tendência de alta forte
+        resolution=201  # Mais pontos para escala maior
     ),
     membership_functions=[
         # gaussmf: [mean, sigma]
-        MembershipFunctionConfig("Baixa", "gaussmf", [0, 15]),      # Centrada em 0, sigma=15
-        MembershipFunctionConfig("Neutra", "gaussmf", [50, 15]),    # Centrada em 50, sigma=15
-        MembershipFunctionConfig("Alta", "gaussmf", [100, 15]),     # Centrada em 100, sigma=15
+        MembershipFunctionConfig("Baixa", "gaussmf", [-100, 30]),   # Centrada em -100 (bearish forte)
+        MembershipFunctionConfig("Neutra", "gaussmf", [0, 25]),     # Centrada em 0 (sem tendência)
+        MembershipFunctionConfig("Alta", "gaussmf", [100, 30]),     # Centrada em +100 (bullish forte)
     ]
 )
 
