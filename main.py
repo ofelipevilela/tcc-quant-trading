@@ -8,10 +8,10 @@ Este script gera os gráficos das MFs para validação teórica do TCC.
 
 Variáveis do Sistema:
 - Trend_Strength: Força da tendência (ADX/Slope EMA) - Gaussiana
-- Price_Zone: Premium/Discount zones - Trapezoidal
+- Price_Zone: Premium/Discount zones - Z / Triangular / S
 - FVG_Quality: Qualidade do Fair Value Gap - Triangular/Sigmoidal
 - Sweep_Quality: Captura de Liquidez - Sigmoidal
-- Trade_Score: Score final (saída) - Trapezoidal
+- Trade_Signal: sinal final bidirecional (saída)
 
 Autor: Felipe Vilela
 Data: Dezembro 2024
@@ -53,7 +53,7 @@ def main():
     # Mostrar detalhes de cada variável
     for name, var in variables.items():
         terms = list(var.terms.keys())
-        var_type = "Consequente" if hasattr(var, 'defuzzify_method') else "Antecedente"
+        var_type = "Consequente" if var.__class__.__name__ == "Consequent" else "Antecedente"
         universe_range = f"[{var.universe.min():.1f}, {var.universe.max():.1f}]"
         print(f"    {var_type}: {name}")
         print(f"      • Universo: {universe_range}")

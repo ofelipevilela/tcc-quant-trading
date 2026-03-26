@@ -10,7 +10,7 @@ Variáveis baseadas em Smart Money Concepts (SMC):
 - Price_Zone: Localização no range Premium/Discount
 - FVG_Quality: Qualidade do Fair Value Gap
 - Sweep_Quality: Qualidade da captura de liquidez
-- Trade_Score: Score final do setup (saída)
+- Trade_Signal: Sinal final bidirecional do setup (saída)
 """
 
 from dataclasses import dataclass, field
@@ -74,8 +74,8 @@ TREND_STRENGTH_CONFIG = FuzzyVariableConfig(
 # 2. PRICE_ZONE - Localização do Preço (Premium/Discount)
 # Input Crisp: % do Range (0 a 1, onde 1 é o topo)
 # Universo: 0 a 1
-# Conjuntos: {Deep_Discount, Discount, Equilibrium, Premium, Deep_Premium}
-# Tipo de Curva: Trapezoidal (trapmf) para zonas rígidas
+# Conjuntos: {Discount, Equilibrium, Premium}
+# Tipo de Curva: Z / Triangular / S
 # -----------------------------------------------------------------------------
 PRICE_ZONE_CONFIG = FuzzyVariableConfig(
     universe=FuzzyUniverseConfig(
@@ -85,12 +85,12 @@ PRICE_ZONE_CONFIG = FuzzyVariableConfig(
         resolution=101
     ),
     membership_functions=[
-        # trapmf: [a, b, c, d] - a e d são os pés, b e c são o topo
-        MembershipFunctionConfig("Deep_Discount", "trapmf", [0, 0, 0.1, 0.2]),       # 0-20%
-        MembershipFunctionConfig("Discount", "trapmf", [0.15, 0.25, 0.35, 0.45]),    # 15-45%
-        MembershipFunctionConfig("Equilibrium", "trapmf", [0.4, 0.47, 0.53, 0.6]),   # 40-60%
-        MembershipFunctionConfig("Premium", "trapmf", [0.55, 0.65, 0.75, 0.85]),     # 55-85%
-        MembershipFunctionConfig("Deep_Premium", "trapmf", [0.8, 0.9, 1.0, 1.0]),    # 80-100%
+        # zmf: pertinência total até 0.3, decaindo até 0 em 0.5
+        MembershipFunctionConfig("Discount", "zmf", [0.3, 0.5]),
+        # trimf: equilíbrio centrado no meio do range
+        MembershipFunctionConfig("Equilibrium", "trimf", [0.4, 0.5, 0.6]),
+        # smf: começa a subir em 0.5, atinge 1 em 0.7
+        MembershipFunctionConfig("Premium", "smf", [0.5, 0.7]),
     ]
 )
 
@@ -144,24 +144,24 @@ SWEEP_QUALITY_CONFIG = FuzzyVariableConfig(
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# TRADE_SCORE - Score do Setup (Probabilidade de Sucesso)
-# Universo: 0 a 100
-# Conjuntos: {Fraco, Moderado, Forte, Muito_Forte}
+# TRADE_SIGNAL - Sinal Bidirecional do Setup
+# Universo: -100 a +100
+# Conjuntos: {Venda_Forte, Venda, Neutro, Compra, Compra_Forte}
 # Defuzzificação: Centroide (centroid)
 # -----------------------------------------------------------------------------
-TRADE_SCORE_CONFIG = FuzzyVariableConfig(
+TRADE_SIGNAL_CONFIG = FuzzyVariableConfig(
     universe=FuzzyUniverseConfig(
-        name="Trade_Score",
-        min_val=0,
+        name="Trade_Signal",
+        min_val=-100,
         max_val=100,
-        resolution=101
+        resolution=201
     ),
     membership_functions=[
-        # trapmf para definir zonas claras de score
-        MembershipFunctionConfig("Fraco", "trapmf", [0, 0, 15, 30]),
-        MembershipFunctionConfig("Moderado", "trapmf", [20, 35, 50, 65]),
-        MembershipFunctionConfig("Forte", "trapmf", [55, 70, 80, 90]),
-        MembershipFunctionConfig("Muito_Forte", "trapmf", [80, 90, 100, 100]),
+        MembershipFunctionConfig("Venda_Forte", "trapmf", [-100, -100, -75, -50]),
+        MembershipFunctionConfig("Venda", "trimf", [-75, -50, -10]),
+        MembershipFunctionConfig("Neutro", "trimf", [-20, 0, 20]),
+        MembershipFunctionConfig("Compra", "trimf", [10, 50, 75]),
+        MembershipFunctionConfig("Compra_Forte", "trapmf", [50, 75, 100, 100]),
     ]
 )
 
@@ -171,7 +171,7 @@ ALL_FUZZY_CONFIGS: Dict[str, FuzzyVariableConfig] = {
     "price_zone": PRICE_ZONE_CONFIG,
     "fvg_quality": FVG_QUALITY_CONFIG,
     "sweep_quality": SWEEP_QUALITY_CONFIG,
-    "trade_score": TRADE_SCORE_CONFIG,
+    "trade_signal": TRADE_SIGNAL_CONFIG,
 }
 
 # =============================================================================

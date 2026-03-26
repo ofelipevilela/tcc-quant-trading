@@ -37,7 +37,7 @@ def main():
     scenarios = {
         "compra_forte": {
             "trend_strength": 75,    # Tendência ALTA (positivo = bullish)
-            "price_zone": 0.15,      # Deep discount
+            "price_zone": 0.15,      # Discount
             "fvg_quality": 2.5,      # FVG grande
             "sweep_quality": 2.0,    # Sweep forte
         },
@@ -49,7 +49,7 @@ def main():
         },
         "venda_forte": {
             "trend_strength": -80,   # Tendência BAIXA (negativo = bearish)
-            "price_zone": 0.9,       # Deep premium
+            "price_zone": 0.9,       # Premium
             "fvg_quality": 2.0,      # FVG padrão/grande
             "sweep_quality": 1.8,    # Sweep forte
         },

@@ -7,10 +7,10 @@ e apresentação do TCC.
 
 Variáveis visualizadas:
 - Trend_Strength: Gaussianas
-- Price_Zone: Trapezoidais (5 zonas)
+- Price_Zone: funções Z / Triangular / S
 - FVG_Quality: Triangulares + Sigmoidal
 - Sweep_Quality: Sigmoidais
-- Trade_Score: Trapezoidais (saída)
+- Trade_Signal: saída bidirecional
 """
 
 import os
@@ -128,7 +128,7 @@ def plot_membership_functions(
         ('price_zone', 'Price Zone (Zona de Preço)', '% do Range (0=Fundo, 1=Topo)'),
         ('fvg_quality', 'FVG Quality (Qualidade do Fair Value Gap)', 'FVG Size / ATR'),
         ('sweep_quality', 'Sweep Quality (Captura de Liquidez)', 'Razão Pavio / Corpo'),
-        ('trade_score', 'Trade Score (Score do Setup) - SAÍDA', 'Score (0-100)'),
+        ('trade_signal', 'Trade Signal (Sinal Bidirecional) - SAÍDA', 'Signal (-100 a 100)'),
     ]
     
     # Criar figura com subplots (3 linhas x 2 colunas)
@@ -164,7 +164,7 @@ def plot_membership_functions(
     fig.text(
         0.5, 0.01,
         'TCC: Trading Quantitativo com Smart Money Concepts e Lógica Fuzzy | '
-        'Variáveis: Trend, Price Zone, FVG, Sweep → Trade Score',
+        'Variáveis: Trend, Price Zone, FVG, Sweep -> Trade Signal',
         ha='center',
         fontsize=9,
         style='italic',
@@ -246,7 +246,7 @@ def create_detailed_report(
         'price_zone': ('Price Zone', '% do Range'),
         'fvg_quality': ('FVG Quality', 'FVG Size / ATR'),
         'sweep_quality': ('Sweep Quality', 'Pavio / Corpo'),
-        'trade_score': ('Trade Score (Output)', 'Score'),
+        'trade_signal': ('Trade Signal (Output)', 'Signal'),
     }
     
     for var_key, var in variables.items():
@@ -305,7 +305,7 @@ def plot_with_examples(
         variables: Dicionário com as variáveis fuzzy
         examples: Valores de exemplo para cada variável. Se None, usa defaults:
                   {'trend_strength': 35, 'price_zone': 0.25, 'fvg_quality': 1.8,
-                   'sweep_quality': 1.5, 'trade_score': None}
+                   'sweep_quality': 1.5, 'trade_signal': None}
         save_path: Caminho para salvar o gráfico
         show: Se True, exibe o gráfico
         
@@ -328,7 +328,7 @@ def plot_with_examples(
         'price_zone': 0.25,        # Zona de desconto
         'fvg_quality': 1.8,        # FVG padrão/grande
         'sweep_quality': 1.5,      # Sweep forte
-        'trade_score': None,       # Saída - não tem exemplo
+        'trade_signal': None,      # Saída - não tem exemplo
     }
     
     if examples:
@@ -341,7 +341,7 @@ def plot_with_examples(
         ('price_zone', 'Price Zone', '% do Range'),
         ('fvg_quality', 'FVG Quality', 'FVG Size / ATR'),
         ('sweep_quality', 'Sweep Quality', 'Pavio / Corpo'),
-        ('trade_score', 'Trade Score (Saída)', 'Score'),
+        ('trade_signal', 'Trade Signal (Saída)', 'Signal'),
     ]
     
     fig, axes = plt.subplots(

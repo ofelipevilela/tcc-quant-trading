@@ -5,9 +5,9 @@ Demonstração do Sistema Fuzzy Completo com Inferência Mamdani.
 
 Este script demonstra o fluxo completo:
 1. Fuzzificação dos inputs
-2. Aplicação das regras (26 regras)
+2. Aplicação das regras bidirecionais
 3. Agregação e defuzzificação (centroide)
-4. Determinação de direção (COMPRA/VENDA)
+4. Determinação de direção pela própria saída fuzzy
 5. Position sizing (Lote cheio / Meio lote)
 
 Execute: python demo_inference.py
@@ -36,46 +36,53 @@ def main():
     
     # Definir cenários de teste
     # NOTA: trend_strength é BIPOLAR: -100 (baixa) a +100 (alta)
+    # Esperamos sinais positivos para compra e negativos para venda.
     scenarios = {
-        "COMPRA MUITO FORTE": {
+        "COMPRA FORTE": {
             "trend_strength": 80,    # Tendência ALTA (bullish)
-            "price_zone": 0.10,      # Deep discount
+            "price_zone": 0.15,      # Discount
             "fvg_quality": 2.8,      # FVG grande
             "sweep_quality": 2.0,    # Sweep forte
         },
-        "COMPRA FORTE": {
+        "COMPRA": {
             "trend_strength": 70,
             "price_zone": 0.25,      # Discount
             "fvg_quality": 1.8,      # FVG padrão
             "sweep_quality": 1.8,
         },
-        "COMPRA MODERADA": {
+        "COMPRA DE RISCO": {
             "trend_strength": 15,    # Tendência neutra/fraca
-            "price_zone": 0.15,      # Deep discount (compensa)
+            "price_zone": 0.20,      # Discount compensa
             "fvg_quality": 2.5,      # FVG grande
             "sweep_quality": 1.5,
         },
-        "VENDA MUITO FORTE": {
+        "VENDA FORTE": {
             "trend_strength": -85,   # Tendência BAIXA (bearish)
-            "price_zone": 0.92,      # Deep premium
+            "price_zone": 0.90,      # Premium
             "fvg_quality": 2.8,
             "sweep_quality": 2.0,
         },
-        "VENDA FORTE": {
+        "VENDA": {
             "trend_strength": -70,
             "price_zone": 0.80,      # Premium
             "fvg_quality": 1.6,      # FVG padrão
             "sweep_quality": 1.8,
         },
         "NEUTRO (Equilibrium)": {
-            "trend_strength": 5,     # Tendência quase neutra
+            "trend_strength": 0,     # Tendência neutra
             "price_zone": 0.50,      # Equilibrium
             "fvg_quality": 1.5,
             "sweep_quality": 1.2,
         },
-        "FRACO (Sem confirmação)": {
+        "CONFLITO (Alta em Premium)": {
+            "trend_strength": 65,
+            "price_zone": 0.80,
+            "fvg_quality": 1.6,
+            "sweep_quality": 1.2,
+        },
+        "SEM CONFIRMACAO": {
             "trend_strength": 10,
-            "price_zone": 0.45,
+            "price_zone": 0.48,
             "fvg_quality": 0.5,      # FVG pequeno
             "sweep_quality": 0.3,    # Sweep fraco
         },
@@ -99,7 +106,7 @@ def main():
         print(f"     • Price Zone: {cenario['price_zone']:.2f}")
         print(f"     • FVG Quality: {cenario['fvg_quality']:.1f}")
         print(f"     • Sweep Quality: {cenario['sweep_quality']:.1f}")
-        print(f"\n   ➜ SCORE: {result['score']:.1f}/100 ({result['classification']})")
+        print(f"\n   ➜ SIGNAL: {result['signal']:+.1f} ({result['classification']})")
         print(f"   ➜ DIREÇÃO: {result['direction']}")
         print(f"   ➜ AÇÃO: {result['action']}")
         print(f"   ➜ POSITION SIZE: {result['position_size']:.1f}")
@@ -108,12 +115,12 @@ def main():
     print("\n" + "="*70)
     print("  RESUMO DAS ENTRADAS VÁLIDAS")
     print("="*70)
-    print(f"\n{'Cenário':<25} {'Score':>8} {'Direção':<10} {'Position':>10}")
+    print(f"\n{'Cenário':<25} {'Signal':>8} {'Direção':<10} {'Position':>10}")
     print("─"*60)
     
     for nome, result in results:
         if result['position_size'] > 0:
-            print(f"{nome:<25} {result['score']:>8.1f} {result['direction']:<10} {result['position_size']:>10.1f}")
+            print(f"{nome:<25} {result['signal']:>+8.1f} {result['direction']:<10} {result['position_size']:>10.1f}")
     
     print("\n" + "="*70)
     print("  ✓ Inferência completa!")

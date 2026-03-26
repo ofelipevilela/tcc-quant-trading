@@ -38,6 +38,8 @@ Sistema de trading quantitativo híbrido que combina **Smart Money Concepts (SMC
 ### 1. Instalar Dependências
 ```bash
 pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
+
 ```
 
 ### 2. Gerar Visualização das Funções de Pertinência

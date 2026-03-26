@@ -7,10 +7,10 @@ a biblioteca scikit-fuzzy, baseado nas configurações do Smart Money Concepts.
 
 Variáveis:
 - Trend_Strength: Força da tendência (ADX/Slope EMA) - Gaussiana
-- Price_Zone: Premium/Discount - Trapezoidal
+- Price_Zone: Premium/Discount - Z / Triangular / S
 - FVG_Quality: Qualidade do Fair Value Gap - Triangular/Sigmoidal
 - Sweep_Quality: Captura de Liquidez - Sigmoidal
-- Trade_Score: Score final do setup (saída)
+- Trade_Signal: Sinal final bidirecional do setup (saída)
 """
 
 import numpy as np
@@ -23,7 +23,7 @@ from config.settings import (
     PRICE_ZONE_CONFIG,
     FVG_QUALITY_CONFIG,
     SWEEP_QUALITY_CONFIG,
-    TRADE_SCORE_CONFIG,
+    TRADE_SIGNAL_CONFIG,
     FuzzyVariableConfig,
 )
 
@@ -113,12 +113,10 @@ def create_price_zone_variable() -> ctrl.Antecedent:
     
     Input Crisp: % do Range (0 a 1, onde 0=fundo, 1=topo).
     
-    Conjuntos fuzzy (Trapezoidais para zonas rígidas):
-    - Deep_Discount: 0-20% do range (zona de compra forte)
-    - Discount: 20-45% (zona de compra)
-    - Equilibrium: 40-60% (zona neutra)
-    - Premium: 55-85% (zona de venda)
-    - Deep_Premium: 80-100% (zona de venda forte)
+    Conjuntos fuzzy:
+    - Discount: pertinência máxima até 0.3, caindo até 0 em 0.5
+    - Equilibrium: zona central do range, centrada em 0.5
+    - Premium: começa a subir em 0.5, atinge 1 em 0.7
     
     Returns:
         Antecedente fuzzy para Price_Zone
@@ -177,26 +175,27 @@ def create_sweep_quality_variable() -> ctrl.Antecedent:
     return sweep
 
 
-def create_trade_score_variable() -> ctrl.Consequent:
+def create_trade_signal_variable() -> ctrl.Consequent:
     """
-    Cria a variável fuzzy Trade_Score (saída do sistema).
+    Cria a variável fuzzy Trade_Signal (saída do sistema).
     
-    Score final do setup de trading variando de 0 a 100.
+    Sinal final do setup de trading variando de -100 a +100.
     Defuzzificação: Centroide (centroid).
     
-    Conjuntos fuzzy (Trapezoidais):
-    - Fraco: 0-30 (não operar)
-    - Moderado: 20-65 (operar com cautela)
-    - Forte: 55-90 (bom setup)
-    - Muito_Forte: 80-100 (setup de alta confiança)
+    Conjuntos fuzzy:
+    - Venda_Forte: região de venda forte
+    - Venda: região de venda
+    - Neutro: ausência de vantagem clara
+    - Compra: região de compra
+    - Compra_Forte: região de compra forte
     
     Returns:
-        Consequente fuzzy para Trade_Score
+        Consequente fuzzy para Trade_Signal
     """
-    universe = _create_universe(TRADE_SCORE_CONFIG)
-    score = ctrl.Consequent(universe, 'Trade_Score', defuzzify_method='centroid')
-    _apply_membership_function(score, TRADE_SCORE_CONFIG)
-    return score
+    universe = _create_universe(TRADE_SIGNAL_CONFIG)
+    signal = ctrl.Consequent(universe, 'Trade_Signal', defuzzify_method='centroid')
+    _apply_membership_function(signal, TRADE_SIGNAL_CONFIG)
+    return signal
 
 
 def create_fuzzy_variables() -> Dict[str, ctrl.Antecedent | ctrl.Consequent]:
@@ -212,17 +211,17 @@ def create_fuzzy_variables() -> Dict[str, ctrl.Antecedent | ctrl.Consequent]:
         - 'price_zone': Antecedente Zona de Preço
         - 'fvg_quality': Antecedente Qualidade do FVG
         - 'sweep_quality': Antecedente Qualidade do Sweep
-        - 'trade_score': Consequente Score do Trade
+        - 'trade_signal': Consequente Sinal do Trade
     
     Example:
         >>> variables = create_fuzzy_variables()
         >>> print(variables['trend_strength'].terms)
-        >>> print(variables['trade_score'].defuzzify_method)
+        >>> print(variables['trade_signal'].defuzzify_method)
     """
     return {
         'trend_strength': create_trend_strength_variable(),
         'price_zone': create_price_zone_variable(),
         'fvg_quality': create_fvg_quality_variable(),
         'sweep_quality': create_sweep_quality_variable(),
-        'trade_score': create_trade_score_variable(),
+        'trade_signal': create_trade_signal_variable(),
     }
