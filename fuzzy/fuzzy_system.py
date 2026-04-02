@@ -40,6 +40,7 @@ class SMCFuzzySystem:
         self.variables = create_fuzzy_variables()
         self.rules: List[ctrl.Rule] = []
         self.control_system: Optional[ctrl.ControlSystem] = None
+        self._simulator: Optional[ctrl.ControlSystemSimulation] = None
 
         self._create_rules()
         self._build_system()
@@ -166,12 +167,13 @@ class SMCFuzzySystem:
             ),
         ])
 
-        print(f"  ✓ {len(self.rules)} regras fuzzy criadas")
+        print(f"  [OK] {len(self.rules)} regras fuzzy criadas")
 
     def _build_system(self) -> None:
         """Constrói o sistema de controle fuzzy."""
         self.control_system = ctrl.ControlSystem(self.rules)
-        print("  ✓ Sistema de inferência Mamdani construído")
+        self._simulator = ctrl.ControlSystemSimulation(self.control_system)
+        print("  [OK] Sistema de inferencia Mamdani construido")
 
     def _classify_signal(self, signal_value: float) -> Dict[str, Any]:
         """
@@ -241,7 +243,8 @@ class SMCFuzzySystem:
         Returns:
             Dict com o sinal defuzzificado e a decisão final do sistema.
         """
-        simulator = ctrl.ControlSystemSimulation(self.control_system)
+        simulator = self._simulator
+        simulator.reset()
 
         simulator.input["Trend_Strength"] = trend_strength
         simulator.input["Price_Zone"] = price_zone
@@ -252,7 +255,7 @@ class SMCFuzzySystem:
             simulator.compute()
             signal_value = float(simulator.output["Trade_Signal"])
         except Exception as exc:
-            print(f"⚠️ Erro na inferência: {exc}")
+            print(f"[WARN] Erro na inferencia: {exc}")
             print("   Isso pode ocorrer se nenhuma regra foi ativada.")
             signal_value = 0.0
 
@@ -310,7 +313,7 @@ def create_fuzzy_system() -> SMCFuzzySystem:
     Returns:
         Instância configurada do SMCFuzzySystem
     """
-    print("\n➤ Inicializando Sistema Fuzzy SMC...")
+    print("\n> Inicializando Sistema Fuzzy SMC...")
     system = SMCFuzzySystem()
-    print("  ✓ Sistema pronto para inferência\n")
+    print("  [OK] Sistema pronto para inferencia\n")
     return system

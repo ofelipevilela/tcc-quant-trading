@@ -1,0 +1,853 @@
+//@version=5
+indicator("Vetor de Fluxo Institucional", shorttitle="VFI",overlay=true, max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_polylines_count=100)
+
+// ==========================================
+// 1. CONFIGURAÇÕES GERAIS
+// ==========================================
+
+// --- FRACTAL MODEL CONFIGS ---
+group_struc = "Configuração CISD (SMC)"
+group_hist = "Gerenciamento"
+
+setup_limit_qty = input.int(5, "Qtd Máxima de Setups (CISD)", minval=1, maxval=50, tooltip="Mantém apenas os últimos X setups na tela.", group=group_hist)
+use_dev_filter  = input.bool(true, "Filtrar Rompimento Verdadeiro?", tooltip="Obriga o preço a devolver o nível rompido.", group=group_hist)
+
+show_sd = input.bool(true, "Mostrar Projeções (SD)?", group=group_hist)
+sd_mult_1 = input.float(2.0, "SD Alvo 1", step=0.5, group=group_hist)
+sd_mult_2 = input.float(2.5, "SD Alvo 2", step=0.5, group=group_hist)
+sd_mult_3 = input.float(3.0, "SD Alvo 3", step=0.5, group=group_hist)
+sd_mult_4 = input.float(3.5, "SD Alvo 4", step=0.5, group=group_hist)
+sd_mult_5 = input.float(4.0, "SD Alvo 5", step=0.5, group=group_hist)
+
+// --- AUTO BIAS (BLOQUEIO AUTOMÁTICO) ---
+grp_bias = "Auto Bias (Filtro de Tendência)"
+use_bias = input.bool(true, "Ativar Bloqueio por Bias?", tooltip="Se LIGADO, o indicador filtra alertas contra a tendência do timeframe escolhido.", group=grp_bias)
+bias_tf  = input.timeframe("60", "Timeframe do Bias", tooltip="Defina quem manda na tendência (Ex: 60 para H1, 240 para H4).", group=grp_bias)
+
+// --- REGRAS DE FORÇA DA VELA (DUPLO FILTRO) ---
+group_qual = "Qualidade da Vela de Expansão (Filtros)"
+sweep_wick_limit_pct = input.int(50, "Máx. % Pavio de Sweep (Rejeição)", minval=1, maxval=99, tooltip="O pavio que rompeu o nível não pode ser maior que X% da vela total.", group=group_qual)
+close_wick_limit_pct = input.int(25, "Máx. % Pavio de Fechamento (Recuo)", minval=0, maxval=99, tooltip="O recuo no fechamento da vela não pode ser maior que X%. Garante corpo cheio.", group=group_qual)
+
+// --- HTF GRID CONFIGS ---
+grp_grid = "Grid Fractal (HTF Range)"
+show_grid = input.bool(true, "Mostrar Grid HTF?", group=grp_grid)
+grid_qty  = input.int(2, "Qtd de Velas no Grid", minval=1, maxval=10, group=grp_grid)
+col_grid_vert = input.color(color.new(color.gray, 80), "Linha Vertical", group=grp_grid)
+col_grid_horiz = input.color(color.new(color.gray, 60), "Linha Horizontal", group=grp_grid)
+
+// --- EQ ZONE CONFIGS ---
+grp_eq = "Zona de Expansão (EQ)"
+show_eq_box = input.bool(true, "Mostrar Zona de Expansão?", tooltip="Plota a zona de 50% da vela HTF (Equilibrium).", group=grp_eq)
+col_eq_prem = input.color(color.new(color.red, 85), "Cor Zona Premium (Venda)", group=grp_eq)
+col_eq_disc = input.color(color.new(color.green, 85), "Cor Zona Discount (Compra)", group=grp_eq)
+
+group_panel = "Painel Lateral (Candles)"
+// OPÇÕES INDEPENDENTES
+panel_candles_qty = input.int(5, "Qtd Velas Painel", minval=3, maxval=7, tooltip="Escolha quantas velas do fractal passado deseja ver (Min 3, Max 7).", group=group_panel)
+show_header_tf = input.bool(true, "Mostrar Timeframe (Texto)?", tooltip="Exibe ex: 'M15' acima das velas.", group=group_panel)
+show_header_timer = input.bool(true, "Mostrar Timer (Texto)?", tooltip="Exibe a contagem regressiva acima das velas.", group=group_panel)
+header_text_size = input.string("normal", "Tamanho Texto Header", options=["tiny", "small", "normal", "large", "huge"], group=group_panel)
+
+offset_val = input.int(15, "Distância Painel", minval=1, group=group_panel)
+fixed_gap = input.int(2, "Espaço Painel", minval=0, group=group_panel)
+
+group_info = "Painel de Info (Fixo)"
+show_info = input.bool(true, "Mostrar Painel de Status?", group=group_info)
+info_size = input.string("small", "Tamanho do Texto", options=["tiny", "small", "normal", "large"], group=group_info)
+info_pos  = input.string("middle_right", "Posição", options=["top_right", "middle_right", "bottom_right"], group=group_info)
+
+group_colors = "Cores Fractal"
+use_candle_color = input.bool(true, "Pintar Vela de Confirmação?", group=group_colors, tooltip="Se desligado, mantém as cores originais do gráfico.")
+col_up_body   = input.color(#089981, "Body Alta", group=group_colors, inline="c_up")
+col_up_border = input.color(#089981, "Border Alta", group=group_colors, inline="c_up")
+col_up_wick   = input.color(#089981, "Wick Alta", group=group_colors, inline="c_up")
+
+col_dn_body   = input.color(#f23645, "Body Baixa", group=group_colors, inline="c_dn")
+col_dn_border = input.color(#f23645, "Border Baixa", group=group_colors, inline="c_dn")
+col_dn_wick   = input.color(#f23645, "Wick Baixa", group=group_colors, inline="c_dn")
+
+col_sweep = input.color(color.black, "Linha Sweep", group=group_colors) 
+col_cisd = input.color(color.blue, "Linha CISD", group=group_colors)
+col_sd    = input.color(color.gray, "Cor Projeção SD", group=group_colors)
+col_c4_bull = input.color(color.new(#089981, 0), "Cor Vela Bullish (C4)", group=group_colors) 
+col_c4_bear = input.color(color.new(#f23645, 0), "Cor Vela Bearish (C4)", group=group_colors)
+
+// --- SMT CONFIGS ---
+grp_smt   = "SMT Configurações"
+len_smt   = input.int(5, title="Sensibilidade Pivot", minval=1, group=grp_smt)
+showBull = input.bool(true, title="Mostrar SMT Alta", group=grp_smt)
+showBear = input.bool(true, title="Mostrar SMT Baixa", group=grp_smt)
+max_smt   = input.int(5, title="Máximo SMTs", minval=1, group=grp_smt)
+colorBear = input.color(color.red, "Cor SMT Bear", group=grp_smt)
+colorBull = input.color(color.green, "Cor SMT Bull", group=grp_smt)
+
+grp_map = "SMT Pares de Correlação"
+s1_a = input.symbol("FX:EURUSD", "Forex", group=grp_map, inline="s1")
+s1_b = input.symbol("FX:GBPUSD", "", group=grp_map, inline="s1")
+s2_a = input.symbol("FOREXCOM:NAS100", "Indices", group=grp_map, inline="s2")
+s2_b = input.symbol("CAPITALCOM:US500", "", group=grp_map, inline="s2")
+s3_a = input.symbol("OANDA:XAUUSD", "Metais", group=grp_map, inline="s3")
+s3_b = input.symbol("OANDA:XAGUSD", "", group=grp_map, inline="s3")
+s4_a = input.symbol("BITSTAMP:BTCUSD", "Crypto", group=grp_map, inline="s4")
+s4_b = input.symbol("BINANCE:ETHUSD", "", group=grp_map, inline="s4")
+s5_a = input.symbol("CME_MINI:MNQ1!", "Futuros", group=grp_map, inline="s5")
+s5_b = input.symbol("CME_MINI:MES1!", "", group=grp_map, inline="s5")
+s6_a = input.symbol("", "Custom", group=grp_map, inline="s6")
+s6_b = input.symbol("", "", group=grp_map, inline="s6")
+
+// --- SPARKLINE CONFIGS ---
+grp_spark = "Mini Gráfico de Linha"
+show_spark      = input.bool(true, "Mostrar Sparkline", group=grp_spark)
+spark_len       = input.int(30, "Qtd de Velas", group=grp_spark)
+spark_offset_x  = input.int(60, "Posição X", group=grp_spark)
+spark_col       = input.color(color.purple, "Cor da Linha", group=grp_spark)
+spark_width     = input.int(2, "Espessura", group=grp_spark)
+
+fixed_width = 2 
+
+// ==========================================
+// 2. FUNÇÕES E LÓGICA (ESCOPO GLOBAL)
+// ==========================================
+
+format_time(ms) =>
+    int s = math.floor(ms / 1000)
+    int m = math.floor(s / 60)
+    int h = math.floor(m / 60)
+    s := s % 60
+    m := m % 60
+    string s_str = s < 10 ? "0" + str.tostring(s) : str.tostring(s)
+    string m_str = m < 10 ? "0" + str.tostring(m) : str.tostring(m)
+    string h_str = h < 10 ? "0" + str.tostring(h) : str.tostring(h)
+    h > 0 ? h_str + ":" + m_str + ":" + s_str : m_str + ":" + s_str
+
+// --- BIAS (FIXO NA VELA ANTERIOR) ---
+[bias_o, bias_c] = request.security(syminfo.tickerid, bias_tf, [open[1], close[1]], lookahead=barmerge.lookahead_on)
+bool bias_is_bull = bias_c >= bias_o
+bool bias_is_bear = bias_c < bias_o
+
+get_clean_name(txt) =>
+    parts = str.split(txt, ":")
+    array.get(parts, array.size(parts) - 1)
+
+currTickerID = syminfo.tickerid 
+currTickerRoot = syminfo.ticker
+is_current(slotInput) => 
+    slotInput != "" and (currTickerID == slotInput or currTickerRoot == slotInput or str.contains(currTickerID, slotInput))
+
+var string targetSym = ""
+if is_current(s1_a)
+    targetSym := s1_b
+else if is_current(s1_b)
+    targetSym := s1_a
+else if is_current(s2_a)
+    targetSym := s2_b
+else if is_current(s2_b)
+    targetSym := s2_a
+else if is_current(s3_a)
+    targetSym := s3_b
+else if is_current(s3_b)
+    targetSym := s3_a
+else if is_current(s4_a)
+    targetSym := s4_b
+else if is_current(s4_b)
+    targetSym := s4_a
+else if is_current(s5_a)
+    targetSym := s5_b
+else if is_current(s5_b)
+    targetSym := s5_a
+else if is_current(s6_a)
+    targetSym := s6_b
+else if is_current(s6_b)
+    targetSym := s6_a
+
+canCalculate = targetSym != ""
+[otherH, otherL] = request.security(canCalculate ? targetSym : syminfo.tickerid, timeframe.period, [high, low], lookahead=barmerge.lookahead_on)
+cleanTickerName = get_clean_name(targetSym)
+
+var line[]  lines_arr  = array.new_line()
+var label[] labels_arr = array.new_label()
+
+clean_old_drawings_smt() =>
+    while array.size(lines_arr) > max_smt
+        line.delete(array.shift(lines_arr))
+        label.delete(array.shift(labels_arr))
+
+// --- SMT LOGIC (CONSECUTIVE PIVOTS) ---
+var float last_ph_price = na
+var float last_ph_other = na
+var int   last_ph_time  = na
+
+var float last_pl_price = na
+var float last_pl_other = na
+var int   last_pl_time  = na
+
+ph = ta.pivothigh(high, len_smt, len_smt)
+pl = ta.pivotlow(low, len_smt, len_smt)
+
+if canCalculate and not na(ph)
+    float curr_other_h = otherH[len_smt]
+    int   curr_time    = time[len_smt]
+    if showBear and not na(last_ph_price)
+        bool div_bear_1 = (ph > last_ph_price) and (curr_other_h < last_ph_other)
+        bool div_bear_2 = (ph < last_ph_price) and (curr_other_h > last_ph_other)
+        if div_bear_1 or div_bear_2
+            l = line.new(last_ph_time, last_ph_price, curr_time, ph, xloc=xloc.bar_time, color=colorBear, width=1)
+            lb = label.new(int((last_ph_time + curr_time)/2), ph, "SMT", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_down, color=color.new(colorBear, 100), textcolor=colorBear, size=size.small)
+            array.push(lines_arr, l)
+            array.push(labels_arr, lb)
+            clean_old_drawings_smt()
+    last_ph_price := ph
+    last_ph_other := curr_other_h
+    last_ph_time  := curr_time
+
+if canCalculate and not na(pl)
+    float curr_other_l = otherL[len_smt]
+    int   curr_time    = time[len_smt]
+    if showBull and not na(last_pl_price)
+        bool div_bull_1 = (pl < last_pl_price) and (curr_other_l > last_pl_other)
+        bool div_bull_2 = (pl > last_pl_price) and (curr_other_l < last_pl_other)
+        if div_bull_1 or div_bull_2
+            l = line.new(last_pl_time, last_pl_price, curr_time, pl, xloc=xloc.bar_time, color=colorBull, width=1)
+            lb = label.new(int((last_pl_time + curr_time)/2), pl, "SMT", xloc=xloc.bar_time, yloc=yloc.price, style=label.style_label_up, color=color.new(colorBull, 100), textcolor=colorBull, size=size.small)
+            array.push(lines_arr, l)
+            array.push(labels_arr, lb)
+            clean_old_drawings_smt()
+    last_pl_price := pl
+    last_pl_other := curr_other_l
+    last_pl_time  := curr_time
+
+// ==========================================
+// 3. CORE LOGIC
+// ==========================================
+
+get_htf() =>
+    float tf_mins = timeframe.in_seconds(timeframe.period) / 60
+    string tf = "1M"
+    if tf_mins < 5 
+        tf := "15"
+    else if tf_mins >= 5 and tf_mins < 15
+        tf := "60"
+    else if tf_mins >= 15 and tf_mins < 60
+        tf := "240"
+    else if tf_mins >= 60 and tf_mins < 240
+        tf := "1D"
+    else if tf_mins >= 240 and tf_mins < 1440
+        tf := "1W"
+    else 
+        tf := "1M"
+    tf
+
+htf_input = get_htf()
+
+// GLOBAL SCOPE REQUEST
+[htf_t_close] = request.security(syminfo.tickerid, htf_input, [time_close], lookahead=barmerge.lookahead_on)
+
+[htf_grid_h, htf_grid_l] = request.security(syminfo.tickerid, htf_input, [high, low], lookahead=barmerge.lookahead_on)
+
+var line[] grid_v_arr = array.new_line()
+var line[] grid_h_arr = array.new_line()
+var line[] grid_l_arr = array.new_line()
+
+if show_grid
+    if ta.change(time(htf_input)) != 0
+        new_v = line.new(bar_index, high, bar_index, low, extend=extend.both, color=col_grid_vert, style=line.style_solid, width=1)
+        array.push(grid_v_arr, new_v)
+        new_h = line.new(bar_index, htf_grid_h, bar_index, htf_grid_h, color=col_grid_horiz, style=line.style_dotted)
+        array.push(grid_h_arr, new_h)
+        new_l = line.new(bar_index, htf_grid_l, bar_index, htf_grid_l, color=col_grid_horiz, style=line.style_dotted)
+        array.push(grid_l_arr, new_l)
+        
+        while array.size(grid_v_arr) > grid_qty
+            line.delete(array.shift(grid_v_arr))
+            line.delete(array.shift(grid_h_arr))
+            line.delete(array.shift(grid_l_arr))
+            
+    if array.size(grid_h_arr) > 0
+        last_h = array.get(grid_h_arr, array.size(grid_h_arr) - 1)
+        last_l = array.get(grid_l_arr, array.size(grid_l_arr) - 1)
+        line.set_x2(last_h, bar_index)
+        line.set_y1(last_h, htf_grid_h)
+        line.set_y2(last_h, htf_grid_h)
+        line.set_x2(last_l, bar_index)
+        line.set_y1(last_l, htf_grid_l)
+        line.set_y2(last_l, htf_grid_l)
+
+type CandleData
+    float o
+    float h
+    float l
+    float c
+    int t     
+
+[ref_h1, ref_l1] = request.security(syminfo.tickerid, htf_input, [high[1], low[1]], lookahead=barmerge.lookahead_on)
+[ref_t1] = request.security(syminfo.tickerid, htf_input, [time[1]], lookahead=barmerge.lookahead_on)
+
+// DATA FETCH EXPANDED FOR UP TO 7 CANDLES
+[o0, h0, l0, c0, t0, o1, h1, l1, c1, t1, o2, h2, l2, c2, t2, o3, h3, l3, c3, t3, o4, h4, l4, c4, t4, o5, h5, l5, c5, t5, o6, h6, l6, c6, t6] = request.security(syminfo.tickerid, htf_input, 
+     [open, high, low, close, time, 
+      open[1], high[1], low[1], close[1], time[1],
+      open[2], high[2], low[2], close[2], time[2],
+      open[3], high[3], low[3], close[3], time[3],
+      open[4], high[4], low[4], close[4], time[4],
+      open[5], high[5], low[5], close[5], time[5],
+      open[6], high[6], low[6], close[6], time[6]], lookahead=barmerge.lookahead_on)
+
+c_curr = CandleData.new(o0, h0, l0, c0, t0) 
+c_1    = CandleData.new(o1, h1, l1, c1, t1) 
+c_2    = CandleData.new(o2, h2, l2, c2, t2)
+c_3    = CandleData.new(o3, h3, l3, c3, t3) 
+c_4    = CandleData.new(o4, h4, l4, c4, t4)
+c_5    = CandleData.new(o5, h5, l5, c5, t5)
+c_6    = CandleData.new(o6, h6, l6, c6, t6)
+
+type SetupObjects
+    int t_victim    
+    int t_aggressor 
+    float level
+    float invalid_level
+    string type_s
+    line l_cisd
+    label lb_cisd
+    line l_sweep   
+    label lb_swp    
+    label lb_c2    
+    label lb_c4
+    line[] sd_lines
+    label[] sd_labels
+    box b_candle
+    box b_eq 
+
+var SetupObjects[] memory = array.new<SetupObjects>()
+
+delete_objects(SetupObjects s) =>
+    if not na(s)
+        line.delete(s.l_cisd)
+        label.delete(s.lb_cisd)
+        line.delete(s.l_sweep)
+        label.delete(s.lb_swp) 
+        label.delete(s.lb_c2)
+        label.delete(s.lb_c4)
+        box.delete(s.b_candle)
+        box.delete(s.b_eq) 
+        if array.size(s.sd_lines) > 0
+            for l in s.sd_lines
+                line.delete(l)
+        if array.size(s.sd_labels) > 0
+            for lb in s.sd_labels
+                label.delete(lb)
+
+clean_oldest_setup() =>
+    while array.size(memory) > setup_limit_qty
+        old = array.shift(memory)
+        delete_objects(old)
+
+check_invalidations() =>
+    if array.size(memory) > 0
+        for i = array.size(memory) - 1 to 0
+            s = array.get(memory, i)
+            bool kill = false
+            if s.type_s == "SSL" and low < s.invalid_level
+                kill := true
+            if s.type_s == "BSL" and high > s.invalid_level
+                kill := true
+            if kill
+                delete_objects(s)
+                array.remove(memory, i)
+
+var bool pending_bear = false
+var bool pending_bull = false
+var float pending_level_bear = na 
+var float pending_level_bull = na 
+var int pending_time_bear = na 
+var int pending_time_bull = na
+var float manip_extreme_bear = na
+var float manip_extreme_bull = na
+var float cisd_trigger_bear = na 
+var float cisd_trigger_bull = na
+var int cisd_time_bear = na 
+var int cisd_time_bull = na 
+
+var float sweep_candle_open_bear = na
+var float sweep_candle_close_bear = na
+var float sweep_candle_open_bull = na
+var float sweep_candle_close_bull = na
+
+float ref_h = ref_h1
+float ref_l = ref_l1
+int ref_t = ref_t1 
+
+// --- REVERSAL VS CONTINUATION STATE ---
+var bool has_printed_rev_bear = false
+var bool has_printed_rev_bull = false
+
+if ta.change(time(htf_input)) != 0
+    pending_bear := false
+    pending_bull := false
+    has_printed_rev_bear := false
+    has_printed_rev_bull := false
+
+check_invalidations()
+
+bool sweep_high = high > ref_h and not na(ref_h)
+bool sweep_low  = low < ref_l and not na(ref_l)
+
+// --- LÓGICA: ISOLAMENTO ESTRITO DA SEQUÊNCIA (BARREIRA DE COR) ---
+get_cisd_data(bool is_bull) =>
+    float trig_p = na
+    int trig_t = time
+    
+    if is_bull 
+        bool in_seq = false
+        float local_extreme_body = -999999.0
+        int local_t = time
+        
+        for i = 0 to 40
+            bool curr_is_bear = close[i] < open[i]
+            bool curr_is_bull = close[i] > open[i]
+            
+            if curr_is_bear
+                in_seq := true
+                float top_body = math.max(open[i], close[i]) 
+                if top_body > local_extreme_body
+                    local_extreme_body := top_body
+                    local_t := time[i]
+            else if curr_is_bull
+                if in_seq
+                    break 
+                    
+        if in_seq
+            trig_p := local_extreme_body
+            trig_t := local_t
+    else 
+        bool in_seq = false
+        float local_extreme_body = 999999999.0
+        int local_t = time
+        
+        for i = 0 to 40
+            bool curr_is_bull = close[i] > open[i]
+            bool curr_is_bear = close[i] < open[i]
+            
+            if curr_is_bull
+                in_seq := true
+                float bot_body = math.min(open[i], close[i]) 
+                if bot_body < local_extreme_body
+                    local_extreme_body := bot_body
+                    local_t := time[i]
+            else if curr_is_bear
+                if in_seq
+                    break 
+                    
+        if in_seq
+            trig_p := local_extreme_body
+            trig_t := local_t
+            
+    if na(trig_p)
+        trig_p := is_bull ? math.max(open, close) : math.min(open, close)
+        trig_t := time
+        
+    [trig_p, trig_t]
+
+// --- TRAVA DE ANCORAGEM ---
+if sweep_high and not pending_bear
+    pending_bear := true
+    pending_bull := false 
+    pending_level_bear := ref_h 
+    pending_time_bear := ref_t 
+    manip_extreme_bear := high
+    [trig_price, trig_time] = get_cisd_data(false)
+    cisd_trigger_bear := trig_price
+    cisd_time_bear := trig_time
+    sweep_candle_open_bear := open
+    sweep_candle_close_bear := close
+
+if pending_bear
+    if high >= manip_extreme_bear
+        manip_extreme_bear := high
+        sweep_candle_open_bear := open
+        sweep_candle_close_bear := close
+    
+if sweep_low and not pending_bull
+    pending_bull := true
+    pending_bear := false 
+    pending_level_bull := ref_l 
+    pending_time_bull := ref_t 
+    manip_extreme_bull := low
+    [trig_price, trig_time] = get_cisd_data(true)
+    cisd_trigger_bull := trig_price
+    cisd_time_bull := trig_time
+    sweep_candle_open_bull := open
+    sweep_candle_close_bull := close
+
+if pending_bull
+    if low <= manip_extreme_bull
+        manip_extreme_bull := low
+        sweep_candle_open_bull := open
+        sweep_candle_close_bull := close
+
+bool is_bsl_confirmed = false
+bool is_ssl_confirmed = false
+
+// FORÇANDO CONFIRMAÇÃO DO FECHAMENTO DA BARRA
+if barstate.isconfirmed and pending_bear and close < cisd_trigger_bear
+    // BIAS FILTER
+    bool bias_ok_bear = not use_bias or bias_is_bear
+    
+    if bias_ok_bear
+        bool confirmed = use_dev_filter ? (close < ref_h) : true
+        
+        if confirmed
+            is_bsl_confirmed := true
+            
+            string type_txt = has_printed_rev_bear ? "Cont" : "Rev"
+            has_printed_rev_bear := true
+            
+            l_swp = line.new(pending_time_bear, pending_level_bear, time, pending_level_bear, xloc=xloc.bar_time, color=col_sweep, width=1)
+            lb_swp = label.new(pending_time_bear, pending_level_bear, "BSL " + type_txt, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=col_sweep, style=label.style_label_down, size=size.tiny)
+            lb_c2 = label.new(int((pending_time_bear+time)/2), manip_extreme_bear, "C2", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=color.gray, style=label.style_label_down, size=size.tiny)
+            
+            int t_end = time + timeframe.multiplier*60*1000*2
+            l_cisd = line.new(cisd_time_bear, cisd_trigger_bear, t_end, cisd_trigger_bear, xloc=xloc.bar_time, color=col_cisd, style=line.style_solid)
+            lb_cisd = label.new(t_end, cisd_trigger_bear, "CISD", xloc=xloc.bar_time, style=label.style_none, textcolor=col_cisd, size=size.tiny)
+            
+            lb_c4 = label.new(time, high, "C4", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=col_dn_body, style=label.style_label_down, size=size.tiny)
+            
+            b_c4 = box.new(bar_index, high, bar_index, low, border_color=na, bgcolor=col_c4_bear)
+
+            float wick_size = manip_extreme_bear - math.max(sweep_candle_open_bear, sweep_candle_close_bear)
+            float estimated_range = manip_extreme_bear - math.min(cisd_trigger_bear, math.min(sweep_candle_open_bear, sweep_candle_close_bear)) 
+            if estimated_range == 0
+                estimated_range := syminfo.mintick
+            float sweep_wick_pct = (wick_size / estimated_range) * 100
+            
+            float body_low = math.min(open, close)
+            float close_wick_size = body_low - low
+            float total_range = high - low
+            float close_wick_pct = total_range > 0 ? (close_wick_size / total_range) * 100 : 0
+
+            bool passed_sweep_filter = sweep_wick_pct <= sweep_wick_limit_pct
+            bool passed_close_filter = close_wick_pct <= close_wick_limit_pct
+            bool is_quality_setup = passed_sweep_filter and passed_close_filter
+            bool show_projections = show_sd and is_quality_setup
+
+            // --- EQ BOX CALCULATION ---
+            box b_eq_new = na
+            if show_eq_box and is_quality_setup
+                float htf_mid = (h0 + l0) / 2
+                int future_t = time + timeframe.in_seconds(htf_input) * 1000
+                b_eq_new := box.new(time, htf_mid, future_t, l0, xloc=xloc.bar_time, border_color=na, bgcolor=col_eq_prem)
+
+            line[] sds_l = array.new_line()
+            label[] sds_lb = array.new_label()
+            
+            if show_projections
+                float dist = manip_extreme_bear - cisd_trigger_bear
+                float t20 = cisd_trigger_bear - (dist * sd_mult_1)
+                array.push(sds_l, line.new(bar_index, t20, bar_index+5, t20, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t20, "-" + str.tostring(sd_mult_1), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t25 = cisd_trigger_bear - (dist * sd_mult_2)
+                array.push(sds_l, line.new(bar_index, t25, bar_index+5, t25, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t25, "-" + str.tostring(sd_mult_2), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t30 = cisd_trigger_bear - (dist * sd_mult_3)
+                array.push(sds_l, line.new(bar_index, t30, bar_index+5, t30, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t30, "-" + str.tostring(sd_mult_3), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t35 = cisd_trigger_bear - (dist * sd_mult_4)
+                array.push(sds_l, line.new(bar_index, t35, bar_index+5, t35, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t35, "-" + str.tostring(sd_mult_4), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t40 = cisd_trigger_bear - (dist * sd_mult_5)
+                array.push(sds_l, line.new(bar_index, t40, bar_index+5, t40, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t40, "-" + str.tostring(sd_mult_5), style=label.style_none, textcolor=col_sd, size=size.tiny))
+
+            new_obj = SetupObjects.new(pending_time_bear, t0, pending_level_bear, manip_extreme_bear, "BSL", l_cisd, lb_cisd, l_swp, lb_swp, lb_c2, lb_c4, sds_l, sds_lb, b_c4, b_eq_new)
+            array.push(memory, new_obj)
+            
+            clean_oldest_setup()
+            
+            pending_bear := false
+    
+// FORÇANDO CONFIRMAÇÃO DO FECHAMENTO DA BARRA
+if barstate.isconfirmed and pending_bull and close > cisd_trigger_bull
+    // BIAS FILTER
+    bool bias_ok_bull = not use_bias or bias_is_bull
+
+    if bias_ok_bull
+        bool confirmed = use_dev_filter ? (close > ref_l) : true
+
+        if confirmed
+            is_ssl_confirmed := true
+            
+            string type_txt = has_printed_rev_bull ? "Cont" : "Rev"
+            has_printed_rev_bull := true
+
+            l_swp = line.new(pending_time_bull, pending_level_bull, time, pending_level_bull, xloc=xloc.bar_time, color=col_sweep, width=1)
+            lb_swp = label.new(pending_time_bull, pending_level_bull, "SSL " + type_txt, xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=col_sweep, style=label.style_label_up, size=size.tiny)
+            lb_c2 = label.new(int((pending_time_bull+time)/2), manip_extreme_bull, "C2", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=color.gray, style=label.style_label_up, size=size.tiny)
+            
+            int t_end = time + timeframe.multiplier*60*1000*2
+            l_cisd = line.new(cisd_time_bull, cisd_trigger_bull, t_end, cisd_trigger_bull, xloc=xloc.bar_time, color=col_cisd, style=line.style_solid)
+            lb_cisd = label.new(t_end, cisd_trigger_bull, "CISD", xloc=xloc.bar_time, style=label.style_none, textcolor=col_cisd, size=size.tiny)
+            
+            lb_c4 = label.new(time, low, "C4", xloc=xloc.bar_time, color=color.new(color.white, 100), textcolor=col_up_body, style=label.style_label_up, size=size.tiny)
+            
+            b_c4 = box.new(bar_index, high, bar_index, low, border_color=na, bgcolor=col_c4_bull)
+
+            float lower_wick = math.min(sweep_candle_open_bull, sweep_candle_close_bull) - manip_extreme_bull
+            float total_size_est = lower_wick + math.abs(sweep_candle_open_bull - sweep_candle_close_bull)
+            
+            float wick_pct = 0.0
+            if total_size_est > 0
+                wick_pct := (lower_wick / total_size_est) * 100
+
+            float body_high = math.max(open, close)
+            float close_wick_size = high - body_high
+            float total_range = high - low
+            float close_wick_pct = total_range > 0 ? (close_wick_size / total_range) * 100 : 0
+
+            bool passed_sweep_filter = wick_pct <= sweep_wick_limit_pct
+            bool passed_close_filter = close_wick_pct <= close_wick_limit_pct
+            bool is_quality_setup = passed_sweep_filter and passed_close_filter
+            bool show_projections = show_sd and is_quality_setup
+
+            // --- EQ BOX CALCULATION ---
+            box b_eq_new = na
+            if show_eq_box and is_quality_setup
+                float htf_mid = (h0 + l0) / 2
+                int future_t = time + timeframe.in_seconds(htf_input) * 1000
+                b_eq_new := box.new(time, h0, future_t, htf_mid, xloc=xloc.bar_time, border_color=na, bgcolor=col_eq_disc)
+
+            line[] sds_l = array.new_line()
+            label[] sds_lb = array.new_label()
+            
+            if show_projections
+                float dist = cisd_trigger_bull - manip_extreme_bull
+                float t20 = cisd_trigger_bull + (dist * sd_mult_1)
+                array.push(sds_l, line.new(bar_index, t20, bar_index+5, t20, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t20, "-" + str.tostring(sd_mult_1), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t25 = cisd_trigger_bull + (dist * sd_mult_2)
+                array.push(sds_l, line.new(bar_index, t25, bar_index+5, t25, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t25, "-" + str.tostring(sd_mult_2), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t30 = cisd_trigger_bull + (dist * sd_mult_3)
+                array.push(sds_l, line.new(bar_index, t30, bar_index+5, t30, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t30, "-" + str.tostring(sd_mult_3), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t35 = cisd_trigger_bull + (dist * sd_mult_4)
+                array.push(sds_l, line.new(bar_index, t35, bar_index+5, t35, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t35, "-" + str.tostring(sd_mult_4), style=label.style_none, textcolor=col_sd, size=size.tiny))
+                
+                float t40 = cisd_trigger_bull + (dist * sd_mult_5)
+                array.push(sds_l, line.new(bar_index, t40, bar_index+5, t40, color=col_sd, style=line.style_dotted))
+                array.push(sds_lb, label.new(bar_index+5, t40, "-" + str.tostring(sd_mult_5), style=label.style_none, textcolor=col_sd, size=size.tiny))
+
+            new_obj = SetupObjects.new(pending_time_bull, t0, pending_level_bull, manip_extreme_bull, "SSL", l_cisd, lb_cisd, l_swp, lb_swp, lb_c2, lb_c4, sds_l, sds_lb, b_c4, b_eq_new)
+            array.push(memory, new_obj)
+            
+            clean_oldest_setup()
+            
+            pending_bull := false
+    
+barcolor(use_candle_color and is_bsl_confirmed ? col_c4_bear : use_candle_color and is_ssl_confirmed ? col_c4_bull : na)
+
+var box[] p_boxes = array.new_box()
+var line[] p_lines = array.new_line()
+var label[] p_labels = array.new_label()
+
+draw_panel_candle(CandleData c, int start_idx, int w, color c_u_bd, color c_u_br, color c_u_wk, color c_d_bd, color c_d_br, color c_d_wk, bool is_curr) =>
+    int x1 = start_idx
+    int x2 = start_idx + w
+    int cx = int((x1+x2)/2)
+    bool is_up = c.c >= c.o
+    color col_body   = is_up ? c_u_bd : c_d_bd
+    color col_border = is_up ? c_u_br : c_d_br
+    color col_wick   = is_up ? c_u_wk : c_d_wk
+    color bg = is_curr ? color.new(col_body, 50) : col_body
+    array.push(p_boxes, box.new(x1, math.max(c.o, c.c), x2, math.min(c.o, c.c), xloc=xloc.bar_index, border_color=col_border, bgcolor=bg))
+    array.push(p_lines, line.new(cx, c.h, cx, math.max(c.o, c.c), xloc=xloc.bar_index, color=col_wick))
+    array.push(p_lines, line.new(cx, c.l, cx, math.min(c.o, c.c), xloc=xloc.bar_index, color=col_wick))
+    cx
+
+if barstate.islast
+    for b in p_boxes
+        box.delete(b)
+    for l in p_lines
+        line.delete(l)
+    for lb in p_labels
+        label.delete(lb)
+    array.clear(p_boxes)
+    array.clear(p_lines)
+    array.clear(p_labels)
+    
+    int start_x = bar_index + offset_val
+    int step = fixed_width + fixed_gap
+    
+    // Create array with all possible history (from newest to oldest for selection)
+    // Order: [Current, 1, 2, 3, 4, 5, 6]
+    CandleData[] all_candles = array.from(c_curr, c_1, c_2, c_3, c_4, c_5, c_6)
+    
+    // Select subset based on user input 'panel_candles_qty'
+    // We want the array to be ordered Oldest -> Newest for drawing (left -> right)
+    CandleData[] candles_draw = array.new<CandleData>()
+    
+    for j = panel_candles_qty - 1 to 0
+        array.push(candles_draw, array.get(all_candles, j))
+    
+    // Mapping arrays to store positions
+    int[] map_t = array.new_int(panel_candles_qty, na)
+    int[] map_x = array.new_int(panel_candles_qty, na)
+    
+    float panel_top_price = -999999.0
+    int center_x_index = 0
+    int mid_idx = math.floor((panel_candles_qty - 1) / 2) // Dynamic center index
+
+    for i = 0 to array.size(candles_draw) - 1
+        c = array.get(candles_draw, i)
+        bool is_curr = (i == array.size(candles_draw) - 1)
+        int cx = draw_panel_candle(c, start_x + (i*step), fixed_width, col_up_body, col_up_border, col_up_wick, col_dn_body, col_dn_border, col_dn_wick, is_curr)
+        array.set(map_t, i, c.t)
+        array.set(map_x, i, cx)
+        
+        // Track height for Header Label
+        if c.h > panel_top_price
+            panel_top_price := c.h
+        
+        // Capture middle candle x-index for centering
+        if i == mid_idx
+            center_x_index := cx
+
+        string lbl = "C" + str.tostring(i+1)
+        array.push(p_labels, label.new(cx, c.h, lbl, xloc=xloc.bar_index, color=color.new(color.white, 100), textcolor=color.gray, style=label.style_label_down, size=size.tiny))
+    
+    // Draw Sweeps connecting candles
+    if array.size(memory) > 0
+        for i = 0 to array.size(memory) - 1
+            s = array.get(memory, i)
+            int x_start = na
+            int x_end = na
+            // Loop through visible candles to find matches
+            for k = 0 to panel_candles_qty - 1
+                if s.t_victim == array.get(map_t, k)
+                    x_start := array.get(map_x, k)
+                if s.t_aggressor == array.get(map_t, k)
+                    x_end := array.get(map_x, k)
+            
+            // If start is older than oldest visible candle, clamp to start
+            if na(x_start) and not na(x_end) and s.t_victim < array.get(map_t, 0)
+                x_start := array.get(map_x, 0)
+                
+            if not na(x_start) and not na(x_end)
+                array.push(p_lines, line.new(x_start, s.level, x_end, s.level, xloc=xloc.bar_index, color=col_sweep, width=1))
+                array.push(p_labels, label.new(int((x_start+x_end)/2), s.level, s.type_s, xloc=xloc.bar_index, color=color.new(color.white, 100), textcolor=col_sweep, style=label.style_label_down, size=size.tiny))
+
+    var polyline spark_poly = na
+    if show_spark
+        polyline.delete(spark_poly)
+        points = array.new<chart.point>()
+        start_x_base = bar_index + spark_offset_x
+        for i = spark_len to 0
+            price_val = close[i]
+            draw_x = start_x_base + (spark_len - i)
+            array.push(points, chart.point.from_index(draw_x, price_val))
+        spark_poly := polyline.new(points, curved=false, line_color=spark_col, line_width=spark_width)
+
+    // --- INDEPENDENT HEADER LABEL (ABOVE CANDLES) ---
+    if show_header_tf or show_header_timer
+        // Calculate Time
+        int time_left = htf_t_close - timenow
+        if time_left < 0
+            time_left := 0
+        
+        string htf_name = htf_input
+        if htf_input == "240"
+            htf_name := "4H"
+        else if htf_input == "60"
+            htf_name := "1H"
+        else if htf_input == "15"
+            htf_name := "M15"
+            
+        string txt_header = ""
+        if show_header_tf
+            txt_header := htf_name
+        
+        if show_header_timer
+            if txt_header != ""
+                txt_header := txt_header + "\n"
+            txt_header := txt_header + format_time(time_left)
+        
+        // Background color is transparent (color.new(white, 100)) to remove "balloon"
+        lbl_header = label.new(center_x_index, panel_top_price, txt_header, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=color.new(color.white, 100), textcolor=color.gray, size=header_text_size)
+        
+        // Adiciona ao array para limpeza automática
+        array.push(p_labels, lbl_header)
+
+// --- 8. INFO PANEL (FULL 4-ROWS HUD) ---
+var table status_tbl = table.new(position.middle_right, 1, 4, border_color=color.black, border_width=1, frame_color=color.black, frame_width=1)
+get_pos(str) =>
+    str == "top_right" ? position.top_right : str == "bottom_right" ? position.bottom_right : position.middle_right
+
+if show_info and barstate.islast
+    table.set_position(status_tbl, get_pos(info_pos))
+    string chart_tf = timeframe.period
+    string htf_name = htf_input
+    if htf_input == "240"
+        htf_name := "4H"
+    else if htf_input == "60"
+        htf_name := "1H"
+    else if htf_input == "15"
+        htf_name := "M15"
+    string model_txt = chart_tf + "-" + htf_name + " Model"
+    
+    // Row 0: Model Title (Ex: 5-1H Model)
+    table.cell(status_tbl, 0, 0, model_txt, bgcolor=color.new(color.gray, 90), text_color=color.black, text_size=info_size)
+    
+    // Row 1: Fractal Timer
+    int time_left = htf_t_close - timenow
+    if time_left < 0
+        time_left := 0
+    string timer_txt = "Timer (" + htf_name + "): " + format_time(time_left)
+    table.cell(status_tbl, 0, 1, timer_txt, bgcolor=color.new(color.gray, 85), text_color=color.black, text_size=size.normal)
+    
+    // Row 2: Smart Status (Sweep/Expansion)
+    string frac_status = "Setup Status: Neutral"
+    color frac_col = color.gray
+    
+    if use_bias
+        if bias_is_bull
+            if pending_bull
+                frac_status := "ALERTA: SWEEP PARA COMPRA (Pro-Trend)"
+                frac_col := color.green
+            if pending_bear
+                frac_status := "Status: EXPANSÃO DE ALTA (Wait)"
+                frac_col := color.orange
+        else if bias_is_bear
+            if pending_bear
+                frac_status := "ALERTA: SWEEP PARA VENDA (Pro-Trend)"
+                frac_col := color.red
+            if pending_bull
+                frac_status := "Status: EXPANSÃO DE BAIXA (Wait)"
+                frac_col := color.orange
+    else
+        if pending_bull
+            frac_status := "ALERTA: Possível Sweep (Bull)"
+            frac_col := color.green
+        if pending_bear
+            frac_status := "ALERTA: Possível Sweep (Bear)"
+            frac_col := color.red
+
+    table.cell(status_tbl, 0, 2, frac_status, bgcolor=color.new(frac_col, 80), text_color=color.black, text_size=info_size)
+    
+    // Row 3: Trend Filter (Bias)
+    string bias_state = bias_is_bull ? "ALTA (BULL)" : "BAIXA (BEAR)"
+    string bias_nm = bias_tf == "240" ? "4H" : bias_tf == "60" ? "1H" : bias_tf
+    string full_bias_txt = "Trend Filter (" + bias_nm + "): " + bias_state
+    color bias_col = bias_is_bull ? color.green : color.red
+    
+    if not use_bias
+        full_bias_txt := "Trend Filter: OFF"
+        bias_col := color.gray
+
+    table.cell(status_tbl, 0, 3, full_bias_txt, bgcolor=color.new(bias_col, 80), text_color=color.black, text_size=info_size)
