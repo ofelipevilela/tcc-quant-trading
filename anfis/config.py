@@ -79,8 +79,12 @@ TRAINING: Dict[str, object] = {
     'batch_size':    64,
     'weight_decay':  1e-4,       # L2 regularization via Adam
     'grad_clip':     1.0,        # max_norm para gradient clipping
-    'patience':      20,         # épocas sem melhora → early stopping
-    'scheduler_patience': 15,    # épocas sem melhora → reduz lr
+    'patience':      15,         # compatibilidade: usado como early stopping
+    'early_stop_patience': 15,   # epocas sem novo minimo de val_loss -> para treino
+    'scheduler_patience': 5,     # epocas sem melhora em val_loss -> reduz lr
+    'scheduler_factor': 0.5,     # multiplicador aplicado ao learning rate
+    'min_delta':     1e-6,       # melhora minima para registrar novo melhor estado
+    'min_lr':        1e-6,       # piso do learning rate no scheduler
     'log_every':     10,         # épocas entre logs detalhados
     'train_split':   0.70,
     'val_split':     0.15,
@@ -89,6 +93,7 @@ TRAINING: Dict[str, object] = {
     'n_synthetic':   5000,       # amostras para dados sintéticos
     'noise_level':   0.1,        # nível de ruído nos dados sintéticos
     'lambda_mf':     0.01,       # peso da penalidade de sobreposição/ordenação
+    'lambda_rule_usage': 0.0,    # penalidade opcional para evitar dominancia de poucas regras
     'sigma_min':     1e-3,       # sigma mínimo das MFs (evita colapso)
 }
 

@@ -40,6 +40,7 @@ Use quando o usuário pedir:
 - Não transforme linguagem operacional em verdade científica.
 - Não trate conceito controverso como consenso acadêmico.
 - Não use tom de vendedor de curso.
+- No LaTeX, garanta que termos em inglês (SMC, ICT, BOS, etc.) estejam em itálico (\textit{termo}).
 
 ## Vocabulário preferido
 Prefira formulações como:

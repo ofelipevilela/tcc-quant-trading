@@ -101,6 +101,7 @@ Escreva em linguagem natural, técnica e moderada.
   - "foi observado que"
   - "neste contexto"
   - "dentro do escopo deste trabalho"
+- No LaTeX, garanta que termos estrangeiros (em inglês) estejam sempre em itálico (\textit{termo}).
 
 ## Regras de honestidade
 Nunca diga que:

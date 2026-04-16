@@ -157,7 +157,7 @@ class ANFISModel(nn.Module):
         # LAYER 3 — Normalized Firing Strength
         # ========================================
         # w̄_i = w_i / (Σ w_j + ε)
-        sum_w = firing_strengths.sum(dim=1, keepdim=True) + self._eps
+        sum_w = firing_strengths.sum(dim=1, keepdim=True).clamp_min(self._eps)
         normalized_strengths = firing_strengths / sum_w
 
         # ========================================

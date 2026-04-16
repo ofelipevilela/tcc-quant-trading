@@ -1,0 +1,127 @@
+{
+  "directional_diagnostics": [
+    {
+      "threshold": 0.03,
+      "activated": 1797,
+      "coverage": 0.8985,
+      "directional_accuracy": 0.5186421814134669,
+      "avg_abs_target": 0.9321888089179993,
+      "score_target_corr": 0.04654240321150908,
+      "objective": 0.7366728314429681
+    },
+    {
+      "threshold": 0.05,
+      "activated": 1544,
+      "coverage": 0.772,
+      "directional_accuracy": 0.5142487046632125,
+      "avg_abs_target": 0.9291225075721741,
+      "score_target_corr": 0.0453700812286689,
+      "objective": 0.5202019952514423
+    },
+    {
+      "threshold": 0.07,
+      "activated": 917,
+      "coverage": 0.4585,
+      "directional_accuracy": 0.5169029443838604,
+      "avg_abs_target": 0.9301619529724121,
+      "score_target_corr": 0.09014229572767257,
+      "objective": 0.4761081345063957
+    },
+    {
+      "threshold": 0.1,
+      "activated": 298,
+      "coverage": 0.149,
+      "directional_accuracy": 0.540268456375839,
+      "avg_abs_target": 0.9266678690910339,
+      "score_target_corr": 0.11299062315717351,
+      "objective": 0.644165140211085
+    }
+  ],
+  "backtest_threshold_diagnostics": [
+    {
+      "threshold": 0.03,
+      "total_trades": 605,
+      "total_return": -6.761472078776729,
+      "annualized_return": -55.07297884590376,
+      "max_drawdown": 30.961959779053256,
+      "win_rate": 49.586776859504134,
+      "profit_factor": 0.9786992132178478,
+      "payoff_ratio": 0.9950108667714787,
+      "expectancy": -11.469472209408968,
+      "avg_trade_return_pct": -0.006897804767609046,
+      "sharpe_ratio": -0.6802848593889314,
+      "sortino_ratio": -1.0393626219743246,
+      "calmar_ratio": -1.778730391709971,
+      "sqn": -0.16972096247837373,
+      "eligible": true
+    },
+    {
+      "threshold": 0.05,
+      "total_trades": 528,
+      "total_return": -25.633650238919248,
+      "annualized_return": -96.6118016403597,
+      "max_drawdown": 37.23457292883235,
+      "win_rate": 47.34848484848485,
+      "profit_factor": 0.9034046932717037,
+      "payoff_ratio": 1.0045860189181346,
+      "expectancy": -48.8167985820867,
+      "avg_trade_return_pct": -0.051464340690158095,
+      "sharpe_ratio": -4.902468532020789,
+      "sortino_ratio": -7.004295591422849,
+      "calmar_ratio": -2.5946799987478566,
+      "sqn": -1.184560597749084,
+      "eligible": true
+    },
+    {
+      "threshold": 0.07,
+      "total_trades": 297,
+      "total_return": -14.702648158705166,
+      "annualized_return": -83.75699970798254,
+      "max_drawdown": 28.031949029275633,
+      "win_rate": 47.474747474747474,
+      "profit_factor": 0.9004275912332239,
+      "payoff_ratio": 0.9962177605133541,
+      "expectancy": -50.05078789062788,
+      "avg_trade_return_pct": -0.049194881744158474,
+      "sharpe_ratio": -3.4486867700942807,
+      "sortino_ratio": -3.7821473596292106,
+      "calmar_ratio": -2.9879121006002665,
+      "sqn": -0.8483046203307719,
+      "eligible": true
+    },
+    {
+      "threshold": 0.1,
+      "total_trades": 106,
+      "total_return": -4.053438102527813,
+      "annualized_return": -37.68175490074188,
+      "max_drawdown": 8.610462639248016,
+      "win_rate": 48.113207547169814,
+      "profit_factor": 0.9247300825286476,
+      "payoff_ratio": 0.9972579321387377,
+      "expectancy": -38.23998209931917,
+      "avg_trade_return_pct": -0.034064904509576104,
+      "sharpe_ratio": -1.4544615568114496,
+      "sortino_ratio": -0.9975696990796545,
+      "calmar_ratio": -4.376275291989742,
+      "sqn": -0.3503025955013664,
+      "eligible": true
+    }
+  ],
+  "selected_threshold_metric": {
+    "threshold": 0.03,
+    "total_trades": 605,
+    "total_return": -6.761472078776729,
+    "annualized_return": -55.07297884590376,
+    "max_drawdown": 30.961959779053256,
+    "win_rate": 49.586776859504134,
+    "profit_factor": 0.9786992132178478,
+    "payoff_ratio": 0.9950108667714787,
+    "expectancy": -11.469472209408968,
+    "avg_trade_return_pct": -0.006897804767609046,
+    "sharpe_ratio": -0.6802848593889314,
+    "sortino_ratio": -1.0393626219743246,
+    "calmar_ratio": -1.778730391709971,
+    "sqn": -0.16972096247837373,
+    "eligible": true
+  }
+}

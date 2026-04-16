@@ -37,6 +37,7 @@ Use esta skill quando o usuário pedir:
 - Não troque package ou macro do preâmbulo sem necessidade real.
 - Não altere sintaxe só por preferência estética.
 - Não converta comandos em texto puro sem motivo.
+- Garanta que termos em inglês estejam envoltos em \textit{termo}.
 - Não mexa no preâmbulo se a tarefa for apenas de escrita.
 
 ## Processo de edição

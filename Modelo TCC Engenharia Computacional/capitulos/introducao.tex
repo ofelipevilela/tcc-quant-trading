@@ -1,0 +1,57 @@
+\chapter{INTRODUÇÃO}
+
+O mercado financeiro movimenta trilhões de dólares diariamente e, nas últimas décadas, passou por uma transformação significativa com a popularização do \textit{trading} algorítmico. Sistemas automatizados de negociação, antes restritos a grandes instituições, tornaram-se acessíveis a operadores individuais por meio de plataformas como o \textit{MetaTrader 5}. Essa democratização do acesso trouxe consigo um interesse crescente por métodos quantitativos capazes de formalizar e avaliar estratégias de operação no mercado.
+% TODO: \cite{referencia_trading_algoritmico}
+
+Dentro desse cenário, a análise técnica ocupa um papel central na tomada de decisão de \textit{traders}. Essa abordagem parte do princípio de que o comportamento passado dos preços contém informação relevante sobre movimentos futuros, e utiliza padrões gráficos, indicadores matemáticos e regras heurísticas para orientar entradas e saídas em operações. Embora amplamente difundida, a análise técnica tradicional apresenta limitações conhecidas: seus sinais tendem a ser rígidos, baseados em limiares fixos, e frequentemente geram interpretações conflitantes entre operadores diferentes.
+% TODO: \cite{murphy1999}
+
+Nos últimos anos, uma vertente particular de análise técnica ganhou popularidade entre operadores de varejo: os chamados \textit{Smart Money Concepts} (SMC), também conhecidos como metodologia ICT. Essa abordagem propõe uma leitura da microestrutura do gráfico centrada em conceitos como estrutura de mercado, zonas de liquidez, \textit{Fair Value Gaps} e \textit{sweeps} de máximas e mínimas. A ideia central é identificar possíveis movimentações de participantes institucionais a partir de padrões observáveis no preço, buscando operar a favor do fluxo de ordens dominante.
+% TODO: \cite{referencia_smc_ict}
+
+Apesar de sua crescente adoção na comunidade de \textit{traders}, a metodologia SMC é inerentemente subjetiva. A identificação de uma mudança de estrutura de mercado, por exemplo, depende de como cada operador define seus pontos de referência --- dois \textit{traders} analisando o mesmo gráfico podem chegar a conclusões opostas. Essa subjetividade dificulta a avaliação objetiva do método, a comparação de resultados entre operadores e a replicação sistemática de estratégias. Na literatura acadêmica, são escassas as tentativas de formalização matemática desses conceitos, que permanecem, em grande parte, como conhecimento prático transmitido de forma informal.
+
+Nesse contexto, a lógica \textit{fuzzy} apresenta-se como uma ferramenta adequada para lidar com o problema. Proposta por Zadeh em 1965, a lógica \textit{fuzzy} permite modelar variáveis linguísticas com fronteiras imprecisas --- exatamente o tipo de vocabulário utilizado por operadores de SMC. Conceitos como \textit{tendência forte}, \textit{preço em zona de desconto}, ou \textit{gap de boa qualidade} são naturalmente vagos e graduais, características que os tornam difíceis de capturar com regras binárias tradicionais, mas que se encaixam bem na representação por conjuntos \textit{fuzzy} e graus de pertinência.
+% TODO: \cite{zadeh1965}
+
+Indo além de um sistema puramente baseado em regras de especialista, a arquitetura ANFIS (\textit{Adaptive Neuro-Fuzzy Inference System}), proposta por Jang em 1993, permite que os parâmetros de um sistema \textit{fuzzy} sejam ajustados automaticamente por meio de aprendizado supervisionado. Dessa forma, o conhecimento operacional do \textit{trader} pode servir como ponto de partida na definição das funções de pertinência e da base de regras, e os dados históricos do mercado refinam esses parâmetros via retropropagação. Essa combinação de interpretabilidade \textit{fuzzy} com capacidade de aprendizado neural é o que motiva a escolha dessa abordagem neste trabalho.
+% TODO: \cite{jang1993}
+
+A motivação deste estudo parte também de uma experiência pessoal do autor como \textit{daytrader}. Operando manualmente com a metodologia SMC no mercado de futuros, o autor percebeu a necessidade de um ferramental que permitisse testar objetivamente se as decisões tomadas no dia a dia possuíam, de fato, alguma vantagem estatística. A pergunta que originou este trabalho foi: as regras que eu sigo na prática realmente funcionam quando avaliadas de forma quantitativa?
+
+
+\section{\uppercase{Definição do Problema}}
+
+A metodologia \textit{Smart Money Concepts}, conforme utilizada pela comunidade de \textit{traders}, consiste em um conjunto de regras qualitativas e heurísticas visuais aplicadas à leitura de gráficos de preço. Apesar de sua popularidade, essa metodologia não possui uma formalização matemática estabelecida. Os conceitos centrais --- como \textit{Break of Structure}, \textit{Change in State of Delivery}, \textit{Fair Value Gaps} e \textit{sweeps} de liquidez --- são definidos de forma narrativa e visual, sem especificação formal que permita sua implementação direta em um sistema computacional.
+
+Essa ausência de formalização gera dois problemas práticos. O primeiro é a impossibilidade de avaliar objetivamente se a metodologia, quando seguida de forma consistente, produz resultados melhores do que operar aleatoriamente. O segundo é a dificuldade de automatizar, mesmo que parcialmente, o processo de tomada de decisão, uma vez que cada conceito depende da interpretação do operador.
+
+A maioria dos trabalhos acadêmicos em \textit{trading} algorítmico utiliza redes neurais como modelos preditivos. Embora essas abordagens possam alcançar bons resultados em termos de acurácia, elas operam como caixas-pretas: não é possível entender quais padrões do mercado o modelo aprendeu ou como uma decisão específica foi tomada. Para um operador que já possui um método próprio e quer entender se esse método é válido, a interpretabilidade do modelo é tão importante quanto o resultado final.
+
+Diante disso, a pergunta central deste trabalho pode ser formulada como: é possível traduzir os conceitos operacionais de \textit{Smart Money Concepts} em variáveis linguísticas \textit{fuzzy} e, a partir delas, construir um sistema neuro-fuzzy capaz de gerar sinais de operação que sejam avaliáveis quantitativamente em dados históricos reais?
+
+
+\section{\uppercase{Objetivos}}
+
+O objetivo geral deste trabalho é desenvolver um sistema neuro-fuzzy baseado na arquitetura ANFIS, capaz de quantificar e automatizar a tomada de decisão de uma estratégia discricionária de \textit{trading} fundamentada nos \textit{Smart Money Concepts}, aplicada a dados \textit{intraday} do mercado financeiro.
+
+Para alcançar esse objetivo, foram definidos os seguintes objetivos específicos:
+
+\begin{itemize}
+    \item Estudar e formalizar os conceitos operacionais de SMC --- como \textit{Break of Structure}, \textit{Change in State of Delivery}, \textit{Fair Value Gap}, \textit{sweep} de liquidez e zonas de preço --- na forma de variáveis linguísticas \textit{fuzzy};
+    \item Projetar um sistema de inferência \textit{fuzzy} do tipo Mamdani com base de regras construída a partir do conhecimento operacional do autor como \textit{trader};
+    \item Implementar um modelo ANFIS de ordem zero (TSK) que refine os parâmetros das funções de pertinência e dos consequentes por meio de aprendizado supervisionado com dados reais obtidos do \textit{MetaTrader 5};
+    \item Avaliar o desempenho do sistema utilizando validação \textit{walk-forward} com métricas como \textit{Profit Factor}, \textit{Win Rate} e Acurácia Direcional;
+    \item Comparar os resultados obtidos entre configurações com e sem causalidade temporal, de modo a quantificar o impacto do viés de \textit{look-ahead} na avaliação do sistema.
+\end{itemize}
+
+
+\section{\uppercase{Organização do Trabalho}}
+
+Este trabalho está organizado da seguinte forma. No Capítulo 2 são apresentados os fundamentos teóricos necessários para a compreensão do sistema desenvolvido, incluindo conceitos de lógica \textit{fuzzy}, sistemas de inferência Mamdani e Takagi-Sugeno-Kang, a arquitetura ANFIS, além de uma contextualização sobre análise técnica e os \textit{Smart Money Concepts}.
+
+No Capítulo 3 é descrita a metodologia adotada, detalhando o \textit{pipeline} de dados a partir do \textit{MetaTrader 5}, o processo de tradução dos indicadores SMC em \textit{features} numéricas, a arquitetura do modelo ANFIS implementado, o procedimento de treinamento e a estrutura de validação \textit{walk-forward} utilizada para avaliação fora da amostra.
+
+No Capítulo 4 são apresentados e discutidos os resultados obtidos nos experimentos, incluindo a comparação entre diferentes modos de construção de \textit{features}, a análise das métricas de desempenho por \textit{fold} do \textit{walk-forward} e a discussão das limitações observadas.
+
+Por fim, no Capítulo 5 são apresentadas as conclusões do trabalho, as principais contribuições e sugestões para trabalhos futuros.

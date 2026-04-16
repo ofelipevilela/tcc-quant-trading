@@ -99,6 +99,7 @@ Ao entregar um texto:
 - cite a figura/tabela quando houver
 - descreva antes de interpretar
 - termine com implicação ou limitação
+- Palavras em inglês no LaTeX devem estar sempre em itálico (\textit{termo pessoalmente}).
 
 ## Critério final
 O leitor deve sair com a sensação de que:

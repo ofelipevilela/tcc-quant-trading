@@ -41,6 +41,8 @@ def compute_loss(
     y_true: torch.Tensor,
     model: ANFISModel,
     lambda_mf: float = 0.01,
+    normalized_strengths: Optional[torch.Tensor] = None,
+    lambda_rule_usage: float = 0.0,
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     """
     Loss composta de três termos para o ANFIS.
@@ -135,13 +137,25 @@ def compute_loss(
         violation = torch.clamp(c_lower - c_upper + 1.0, min=0.0)
         loss_order = loss_order + violation
 
+    # --- Termo 4: diversidade de uso das regras ---
+    loss_rule_usage = torch.tensor(0.0, device=y_pred.device)
+    if normalized_strengths is not None and lambda_rule_usage > 0:
+        mean_usage = normalized_strengths.mean(dim=0)
+        mean_usage = mean_usage / (mean_usage.sum() + 1e-8)
+        loss_rule_usage = mean_usage.pow(2).sum()
+
     # --- Loss total ---
-    loss_total = loss_mse + lambda_mf * (loss_overlap + loss_order)
+    loss_total = (
+        loss_mse
+        + lambda_mf * (loss_overlap + loss_order)
+        + lambda_rule_usage * loss_rule_usage
+    )
 
     components = {
         'mse': loss_mse.item(),
         'overlap': loss_overlap.item(),
         'order': loss_order.item(),
+        'rule_usage': loss_rule_usage.item(),
         'total': loss_total.item(),
     }
 
@@ -150,7 +164,8 @@ def compute_loss(
 
 class AdamTrainer:
     """
-    Treinador ANFIS via Adam com differential learning rates.
+    Treinador ANFIS via Adam com differential learning rates, scheduler e
+    early stopping baseado em validação.
 
     Parameters
     ----------
@@ -168,7 +183,7 @@ class AdamTrainer:
     optimizer : torch.optim.Adam
         Otimizador com grupos de parâmetros.
     scheduler : ReduceLROnPlateau
-        Scheduler de learning rate.
+        Scheduler de learning rate monitorando ``val_loss``.
     """
 
     def __init__(
@@ -211,14 +226,21 @@ class AdamTrainer:
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer,
             mode='min',
-            factor=0.5,
-            patience=self.config.get('scheduler_patience', 15),
-            min_lr=1e-6,
+            factor=self.config.get('scheduler_factor', 0.5),
+            patience=self.config.get('scheduler_patience', 5),
+            min_lr=self.config.get('min_lr', 1e-6),
         )
 
         logger.info(
             f"AdamTrainer inicializado: device={self.device}, "
             f"lr_mf={lr:.4f}, lr_consequents={lr * lr_mult:.4f}"
+        )
+
+    def _current_lrs(self) -> Tuple[float, float]:
+        """Retorna os learning rates atuais dos grupos MF e consequentes."""
+        return (
+            float(self.optimizer.param_groups[0]['lr']),
+            float(self.optimizer.param_groups[1]['lr']),
         )
 
     def train(
@@ -248,6 +270,7 @@ class AdamTrainer:
         history = {
             'train_loss': [], 'val_loss': [],
             'train_mse': [], 'val_mse': [],
+            'train_rule_usage': [], 'val_rule_usage': [],
             'val_ic': [],
             'lr_mf': [], 'lr_consequents': [],
             'mf_snapshots': [],
@@ -257,12 +280,27 @@ class AdamTrainer:
         epochs_no_improve = 0
         best_state = None
         lambda_mf = self.config.get('lambda_mf', 0.01)
+        lambda_rule_usage = self.config.get('lambda_rule_usage', 0.0)
         max_epochs = self.config['epochs']
-        patience = self.config.get('patience', 20)
+        early_stop_patience = self.config.get(
+            'early_stop_patience',
+            self.config.get('patience', 15),
+        )
+        min_delta = self.config.get('min_delta', 1e-6)
+        patience = early_stop_patience
         log_every = self.config.get('log_every', 10)
         grad_clip = self.config.get('grad_clip', 1.0)
 
         logger.info(f"Iniciando treinamento: {max_epochs} épocas, patience={patience}")
+
+        logger.info(
+            "Scheduler ReduceLROnPlateau: patience=%d, factor=%.3f | "
+            "EarlyStopping: patience=%d, min_delta=%.2e",
+            self.config.get('scheduler_patience', 5),
+            self.config.get('scheduler_factor', 0.5),
+            patience,
+            min_delta,
+        )
 
         for epoch in range(max_epochs):
 
@@ -270,14 +308,22 @@ class AdamTrainer:
             self.model.train()
             epoch_losses = []
             epoch_mse = []
+            epoch_rule_usage = []
 
             for xb, yb in train_loader:
                 xb = xb.to(self.device)
                 yb = yb.to(self.device)
 
                 self.optimizer.zero_grad()
-                y_pred, _, _ = self.model(xb)
-                loss, components = compute_loss(y_pred, yb, self.model, lambda_mf)
+                y_pred, _, normalized = self.model(xb)
+                loss, components = compute_loss(
+                    y_pred,
+                    yb,
+                    self.model,
+                    lambda_mf=lambda_mf,
+                    normalized_strengths=normalized,
+                    lambda_rule_usage=lambda_rule_usage,
+                )
 
                 loss.backward()
 
@@ -291,10 +337,13 @@ class AdamTrainer:
                 self.optimizer.step()
 
                 # Forçar constraints após update
-                self.model.clamp_mf_params()
+                self.model.clamp_mf_params(
+                    sigma_min=self.config.get('sigma_min', None)
+                )
 
                 epoch_losses.append(loss.item())
                 epoch_mse.append(components['mse'])
+                epoch_rule_usage.append(components['rule_usage'])
 
             # --- VALIDAÇÃO ---
             self.model.eval()
@@ -302,19 +351,26 @@ class AdamTrainer:
             val_targets_list = []
             val_loss_accum = []
             val_mse_accum = []
+            val_rule_usage_accum = []
 
             with torch.no_grad():
                 for xb, yb in val_loader:
                     xb = xb.to(self.device)
                     yb = yb.to(self.device)
 
-                    y_pred, _, _ = self.model(xb)
+                    y_pred, _, normalized = self.model(xb)
                     loss, components = compute_loss(
-                        y_pred, yb, self.model, lambda_mf
+                        y_pred,
+                        yb,
+                        self.model,
+                        lambda_mf=lambda_mf,
+                        normalized_strengths=normalized,
+                        lambda_rule_usage=lambda_rule_usage,
                     )
 
                     val_loss_accum.append(loss.item())
                     val_mse_accum.append(components['mse'])
+                    val_rule_usage_accum.append(components['rule_usage'])
                     val_preds_list.extend(y_pred.cpu().numpy().flatten())
                     val_targets_list.extend(yb.cpu().numpy().flatten())
 
@@ -322,6 +378,8 @@ class AdamTrainer:
             val_mse = float(np.mean(val_mse_accum))
             train_loss = float(np.mean(epoch_losses))
             train_mse = float(np.mean(epoch_mse))
+            train_rule_usage = float(np.mean(epoch_rule_usage))
+            val_rule_usage = float(np.mean(val_rule_usage_accum))
 
             # Information Coefficient (Spearman rank correlation)
             if len(val_preds_list) > 2:
@@ -330,16 +388,32 @@ class AdamTrainer:
             else:
                 val_ic = 0.0
 
+            lr_before = self._current_lrs()
             self.scheduler.step(val_loss)
+            lr_after = self._current_lrs()
+            if lr_after != lr_before:
+                logger.info(
+                    "ReduceLROnPlateau acionado na época %03d | "
+                    "val_loss=%.6f | lr_mf %.2e -> %.2e | "
+                    "lr_consequents %.2e -> %.2e",
+                    epoch,
+                    val_loss,
+                    lr_before[0],
+                    lr_after[0],
+                    lr_before[1],
+                    lr_after[1],
+                )
 
             # --- LOGGING ---
             history['train_loss'].append(train_loss)
             history['val_loss'].append(val_loss)
             history['train_mse'].append(train_mse)
             history['val_mse'].append(val_mse)
+            history['train_rule_usage'].append(train_rule_usage)
+            history['val_rule_usage'].append(val_rule_usage)
             history['val_ic'].append(val_ic)
-            history['lr_mf'].append(self.optimizer.param_groups[0]['lr'])
-            history['lr_consequents'].append(self.optimizer.param_groups[1]['lr'])
+            history['lr_mf'].append(lr_after[0])
+            history['lr_consequents'].append(lr_after[1])
             history['mf_snapshots'].append(self.model.get_mf_params())
 
             if epoch % log_every == 0:
@@ -348,23 +422,36 @@ class AdamTrainer:
                     f"train_loss={train_loss:.4f} | "
                     f"val_loss={val_loss:.4f} | "
                     f"val_IC={val_ic:.4f} | "
-                    f"lr_mf={self.optimizer.param_groups[0]['lr']:.2e}"
+                    f"lr_mf={lr_after[0]:.2e}"
                 )
 
             # --- EARLY STOPPING + CHECKPOINT ---
-            if val_loss < best_val_loss - 1e-6:
+            if val_loss < best_val_loss - min_delta:
                 best_val_loss = val_loss
                 epochs_no_improve = 0
                 best_state = copy.deepcopy(self.model.state_dict())
+                logger.info(
+                    "Novo melhor estado salvo em memória | época=%03d | val_loss=%.6f",
+                    epoch,
+                    best_val_loss,
+                )
             else:
                 epochs_no_improve += 1
                 if epochs_no_improve >= patience:
-                    logger.info(f"Early stopping na época {epoch}.")
+                    logger.info(
+                        "Early stopping acionado na época %03d | "
+                        "sem novo mínimo de val_loss por %d épocas | "
+                        "melhor_val_loss=%.6f",
+                        epoch,
+                        patience,
+                        best_val_loss,
+                    )
                     break
 
         # Restaurar melhor estado
         if best_state is not None:
             self.model.load_state_dict(best_state)
+            logger.info("Pesos restaurados para o melhor estado observado em validação.")
 
         logger.info(f"Treinamento concluído. Melhor val_loss: {best_val_loss:.4f}")
 

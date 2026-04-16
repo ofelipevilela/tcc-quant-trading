@@ -1,0 +1,116 @@
+{
+  "initial": {
+    "trend_strength": {
+      "Baixa": {
+        "center": -75.0,
+        "sigma": 20.0
+      },
+      "Neutra": {
+        "center": 0.0,
+        "sigma": 25.0
+      },
+      "Alta": {
+        "center": 75.0,
+        "sigma": 20.0
+      }
+    },
+    "price_zone": {
+      "Discount": {
+        "center": 0.15000000596046448,
+        "sigma": 0.11999999731779099
+      },
+      "Equilibrium": {
+        "center": 0.5,
+        "sigma": 0.11999999731779099
+      },
+      "Premium": {
+        "center": 0.8500000238418579,
+        "sigma": 0.11999999731779099
+      }
+    },
+    "fvg_quality": {
+      "Pequeno": {
+        "center": 0.5,
+        "sigma": 0.4000000059604645
+      },
+      "Padrao": {
+        "center": 1.5,
+        "sigma": 0.5
+      },
+      "Grande": {
+        "center": 3.0,
+        "sigma": 0.6000000238418579
+      }
+    },
+    "sweep_quality": {
+      "Fraco": {
+        "center": 0.4000000059604645,
+        "sigma": 0.4000000059604645
+      },
+      "Forte": {
+        "center": 2.0,
+        "sigma": 0.5
+      }
+    }
+  },
+  "final_best_validation": {
+    "trend_strength": {
+      "Baixa": {
+        "center": -72.16545867919922,
+        "sigma": 17.711841583251953
+      },
+      "Neutra": {
+        "center": -0.09801188111305237,
+        "sigma": 22.274858474731445
+      },
+      "Alta": {
+        "center": 72.21180725097656,
+        "sigma": 17.437578201293945
+      }
+    },
+    "price_zone": {
+      "Discount": {
+        "center": 0.08521346747875214,
+        "sigma": 0.12122219800949097
+      },
+      "Equilibrium": {
+        "center": 0.5872922539710999,
+        "sigma": 0.14362820982933044
+      },
+      "Premium": {
+        "center": 0.8350120186805725,
+        "sigma": 0.21249039471149445
+      }
+    },
+    "fvg_quality": {
+      "Pequeno": {
+        "center": 0.466619610786438,
+        "sigma": 0.5301605463027954
+      },
+      "Padrao": {
+        "center": 1.4772197008132935,
+        "sigma": 0.5327370166778564
+      },
+      "Grande": {
+        "center": 2.822261095046997,
+        "sigma": 0.7064601182937622
+      }
+    },
+    "sweep_quality": {
+      "Fraco": {
+        "center": 0.5093121528625488,
+        "sigma": 0.4596542716026306
+      },
+      "Forte": {
+        "center": 2.1821744441986084,
+        "sigma": 0.37016841769218445
+      }
+    }
+  },
+  "shift_summary": {
+    "mf_mean_abs_center_shift": 0.5830180848186667,
+    "mf_mean_abs_sigma_shift": 0.741082368249243,
+    "mf_max_abs_center_shift": 2.8345413208007812,
+    "mf_max_abs_sigma_shift": 2.7251415252685547
+  }
+}

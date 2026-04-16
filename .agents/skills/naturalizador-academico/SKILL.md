@@ -72,6 +72,7 @@ Ele pode ter:
 - frases de tamanho variado
 - transições discretas
 - menos teatralidade acadêmica
+- termos estrangeiros (inglês) sempre em itálico (\textit{termo}).
 
 ### 2. Preserve imperfeições legítimas de voz
 É aceitável que o texto:

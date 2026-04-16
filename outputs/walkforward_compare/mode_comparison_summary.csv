@@ -1,0 +1,2 @@
+﻿feature_mode,folds,mean_test_profit_factor,median_test_profit_factor,mean_test_win_rate,mean_test_max_drawdown,mean_test_total_return,mean_test_sharpe_ratio,mean_test_directional_accuracy,mean_test_total_trades,positive_pf_folds,positive_return_folds
+causal_v3,4,0.9957271271655657,1.0161863763014345,50.30806152546137,12.438191622051166,-0.4073223369804655,0.08979463596137716,0.5324385641948397,191.0,3,3
